@@ -10,7 +10,7 @@ from bayesian_model.risk_model import RiskPredictionModel
 
 st.set_page_config(page_title="SOC Incident Response Assistant", layout="wide")
 
-st.title("🔐 SOC Incident Response Decision Support System")
+st.title("SOC Incident Response Decision Support System")
 
 st.write(
     """
@@ -25,29 +25,29 @@ Features:
 
 st.divider()
 
-if st.button("🚨 Simulate Security Incident"):
+if st.button("Simulate Security Incident"):
 
     parser = LogParser()
     logs = parser.generate_sample_logs()
 
-    st.subheader("📜 Generated Logs")
+    st.subheader("Generated Logs")
     for log in logs:
         st.code(log)
 
     evidence = parser.analyze_logs()
 
-    st.subheader("🔍 Extracted Evidence")
+    st.subheader("Extracted Evidence")
     st.json(evidence)
 
     model = RiskPredictionModel()
 
     result = model.predict_bruteforce(evidence["FailedLogins"])
 
-    st.subheader("📊 Attack Probability")
+    st.subheader("Attack Probability")
 
     st.write(result)
 
-    st.subheader("🛡 Recommended SOC Actions")
+    st.subheader("Recommended SOC Actions")
 
     if evidence["FailedLogins"] == 1:
         st.success("Lock affected accounts and monitor authentication logs.")
