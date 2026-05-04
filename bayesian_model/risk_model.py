@@ -1,98 +1,121 @@
+# file: bayesian_model/risk_model.py
+
+import pandas as pd
+import os
+
 from pgmpy.models import DiscreteBayesianNetwork
-from pgmpy.factors.discrete import TabularCPD
 from pgmpy.inference import VariableElimination
+from pgmpy.estimators import MaximumLikelihoodEstimator
 
 
 class RiskPredictionModel:
 
-    def __init__(self):
+    def __init__(self, data_path="data/incidents.csv"):
 
-        # Define relationships
+        self.data_path = data_path
+
+        # -------------------------------
+        # FULL RELATIONSHIP MODEL
+        # -------------------------------
         self.model = DiscreteBayesianNetwork([
             ('FailedLogins', 'BruteForceAttack'),
+            ('BruteForcePattern', 'BruteForceAttack'),
+
             ('SuspiciousEmail', 'PhishingAttack'),
-            ('PowerShellExec', 'MalwareExecution')
+
+            ('PowerShellExec', 'MalwareExecution'),
+            ('MalwareSequence', 'MalwareExecution')  # NEW
         ])
 
-        self._build_probabilities()
+        # -------------------------------
+        # LOAD DATA
+        # -------------------------------
+        if os.path.exists(self.data_path):
+            self.data = pd.read_csv(self.data_path)
+        else:
+            self.data = pd.DataFrame()
 
-    def _build_probabilities(self):
-
-        # Evidence probabilities
-        cpd_failed_logins = TabularCPD(
-            variable='FailedLogins',
-            variable_card=2,
-            values=[[0.7], [0.3]]
-        )
-
-        cpd_email = TabularCPD(
-            variable='SuspiciousEmail',
-            variable_card=2,
-            values=[[0.8], [0.2]]
-        )
-
-        cpd_powershell = TabularCPD(
-            variable='PowerShellExec',
-            variable_card=2,
-            values=[[0.85], [0.15]]
-        )
-
-        # Attack probabilities
-        cpd_bruteforce = TabularCPD(
-            variable='BruteForceAttack',
-            variable_card=2,
-            values=[[0.9, 0.2],
-                    [0.1, 0.8]],
-            evidence=['FailedLogins'],
-            evidence_card=[2]
-        )
-
-        cpd_phishing = TabularCPD(
-            variable='PhishingAttack',
-            variable_card=2,
-            values=[[0.85, 0.3],
-                    [0.15, 0.7]],
-            evidence=['SuspiciousEmail'],
-            evidence_card=[2]
-        )
-
-        cpd_malware = TabularCPD(
-            variable='MalwareExecution',
-            variable_card=2,
-            values=[[0.9, 0.25],
-                    [0.1, 0.75]],
-            evidence=['PowerShellExec'],
-            evidence_card=[2]
-        )
-
-        self.model.add_cpds(
-            cpd_failed_logins,
-            cpd_email,
-            cpd_powershell,
-            cpd_bruteforce,
-            cpd_phishing,
-            cpd_malware
-        )
-
-        self.model.check_model()
+        # -------------------------------
+        # TRAIN MODEL
+        # -------------------------------
+        if not self.data.empty:
+            self.model.fit(self.data, estimator=MaximumLikelihoodEstimator)
 
         self.inference = VariableElimination(self.model)
 
-    def predict_bruteforce(self, failed_logins):
+    # -------------------------------
+    # PREDICT BRUTE FORCE
+    # -------------------------------
+    def predict_bruteforce(self, evidence):
 
-        result = self.inference.query(
+        return self.inference.query(
             variables=['BruteForceAttack'],
-            evidence={'FailedLogins': failed_logins}
+            evidence={
+                'FailedLogins': evidence["FailedLogins"],
+                'BruteForcePattern': evidence["BruteForcePattern"]
+            }
         )
 
-        return result
+    # -------------------------------
+    # PREDICT PHISHING
+    # -------------------------------
+    def predict_phishing(self, evidence):
 
+        return self.inference.query(
+            variables=['PhishingAttack'],
+            evidence={
+                'SuspiciousEmail': evidence["SuspiciousEmail"]
+            }
+        )
 
-if __name__ == "__main__":
+    # -------------------------------
+    # PREDICT MALWARE
+    # -------------------------------
+    def predict_malware(self, evidence):
 
-    model = RiskPredictionModel()
+        return self.inference.query(
+            variables=['MalwareExecution'],
+            evidence={
+                'PowerShellExec': evidence["PowerShellExec"],
+                'MalwareSequence': evidence["MalwareSequence"]
+            }
+        )
 
-    result = model.predict_bruteforce(failed_logins=1)
+    # -------------------------------
+    # SAVE INCIDENT (LEARNING)
+    # -------------------------------
+    def save_incident(self, evidence):
 
-    print("\nBrute Force Attack Probability:")
-    print(result)
+        new_row = {
+            "FailedLogins": evidence.get("FailedLogins", 0),
+            "SuspiciousEmail": evidence.get("SuspiciousEmail", 0),
+            "PowerShellExec": evidence.get("PowerShellExec", 0),
+            "BruteForcePattern": evidence.get("BruteForcePattern", 0),
+            "MalwareSequence": evidence.get("MalwareSequence", 0),
+
+            "BruteForceAttack": evidence.get("BruteForcePattern", 0),
+            "PhishingAttack": evidence.get("SuspiciousEmail", 0),
+            "MalwareExecution": evidence.get("MalwareSequence", 0),
+        }
+
+        columns_order = [
+            "FailedLogins",
+            "SuspiciousEmail",
+            "PowerShellExec",
+            "BruteForcePattern",
+            "MalwareSequence",
+            "BruteForceAttack",
+            "PhishingAttack",
+            "MalwareExecution"
+        ]
+
+        df_new = pd.DataFrame([new_row])[columns_order]
+
+        if os.path.exists(self.data_path):
+            df_old = pd.read_csv(self.data_path)
+            df_old = df_old.reindex(columns=columns_order)
+            df = pd.concat([df_old, df_new], ignore_index=True)
+        else:
+            df = df_new
+
+        df.to_csv(self.data_path, index=False)
