@@ -229,6 +229,6 @@ Incident-Response-Management-System/
 
 ---
 
-## 👨‍💻 Author
+## Author
 
 Meghana V L
