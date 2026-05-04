@@ -1,78 +1,156 @@
 # file: chatbot/soc_chat_engine.py
 
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+
+
 class SOCChatEngine:
-    def __init__(self, evidence):
-        self.evidence = evidence
 
-    def process_query(self, user_input: str) -> str:
-        query = user_input.lower()
+    def __init__(self, evidence=None):
+        self.evidence = evidence or {}
 
-        if "why" in query or "explain" in query:
+        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+
+        self.intents = {
+            "phishing": [
+                "is this a phishing attack?",
+                "email looks suspicious",
+                "phishing detected?",
+                "suspicious attachment"
+            ],
+            "bruteforce": [
+                "multiple login failures",
+                "brute force attack?",
+                "too many failed logins",
+                "login attack"
+            ],
+            "malware": [
+                "powershell suspicious",
+                "malware detected?",
+                "is system infected?",
+                "script execution issue"
+            ],
+            "impact": [
+                "what is the impact?",
+                "how severe is this?",
+                "risk level?",
+                "impact level?"
+            ],
+            "general": [
+                "what is happening?",
+                "summarize incident",
+                "what do you see?"
+            ]
+        }
+
+        self.intent_embeddings = {
+            key: self.model.encode(sentences)
+            for key, sentences in self.intents.items()
+        }
+
+    # -------------------------------
+    # MAIN CHAT FUNCTION
+    # -------------------------------
+    def process_query(self, user_input, model=None):
+
+        if not self.evidence or not model:
+            return "No data available. Please run simulation."
+
+        user_input = user_input.lower()
+
+        # model-based probabilities
+        brute = model.predict_bruteforce(self.evidence)
+        phishing = model.predict_phishing(self.evidence)
+        malware = model.predict_malware(self.evidence)
+
+        brute_prob = brute.values[1]
+        phishing_prob = phishing.values[1]
+        malware_prob = malware.values[1]
+
+        # -------------------------------
+        # SMART RESPONSE
+        # -------------------------------
+        if "summary" in user_input or "attack" in user_input:
+            return (
+                f"Detected Threats:\n"
+                f"- Brute Force: {brute_prob:.2f}\n"
+                f"- Phishing: {phishing_prob:.2f}\n"
+                f"- Malware: {malware_prob:.2f}"
+            )
+
+        elif "phishing" in user_input:
+            return f"Phishing probability: {phishing_prob:.2f}"
+
+        elif "brute" in user_input or "login" in user_input:
+            return f"Brute force probability: {brute_prob:.2f}"
+
+        elif "malware" in user_input or "powershell" in user_input:
+            return f"Malware probability: {malware_prob:.2f}"
+
+        elif "impact" in user_input:
+            return self._impact_response()
+
+        elif "why" in user_input or "explain" in user_input:
             return self.explain_decision()
 
-        if "phishing" in query:
-            return self._phishing_response()
-
-        if "brute" in query or "login" in query:
-            return self._brute_response()
-
-        if "malware" in query or "powershell" in query:
-            return self._malware_response()
-
-        if "impact" in query:
-            return self._impact()
-
-        return "Ask about attacks, impact, or ask 'why' for explanation."
+        else:
+            return "Ask about attacks, impact, or summary."
 
     # -------------------------------
-    # EXPLANATION ENGINE 
+    # IMPACT RESPONSE
+    # -------------------------------
+    def _impact_response(self):
+
+        if not self.evidence:
+            return "No evidence available."
+
+        if self.evidence.get("PowerShellExec"):
+            return "🔴 HIGH impact due to malware execution."
+        elif self.evidence.get("SuspiciousEmail"):
+            return "🟠 MEDIUM impact due to phishing."
+        elif self.evidence.get("FailedLogins"):
+            return "🟡 LOW impact due to login anomalies."
+
+        return "🟢 No significant threat."
+
+    # -------------------------------
+    # SUMMARY
+    # -------------------------------
+    def _summary_response(self):
+
+        if not self.evidence:
+            return "No incident data available."
+
+        return (
+            f"Summary:\n"
+            f"- Failed Logins: {self.evidence.get('FailedLogins')}\n"
+            f"- Suspicious Email: {self.evidence.get('SuspiciousEmail')}\n"
+            f"- PowerShell Exec: {self.evidence.get('PowerShellExec')}"
+        )
+
+    # -------------------------------
+    # EXPLANATION
     # -------------------------------
     def explain_decision(self):
-        reasons = []
 
-        if self.evidence["FailedLogins"]:
-            reasons.append("Multiple failed login attempts detected")
+        if not self.evidence:
+            return "No evidence available."
 
-        if self.evidence["BruteForcePattern"]:
-            reasons.append("Repeated login pattern suggests automated attack")
+        explanation = []
 
-        if self.evidence["SuspiciousEmail"]:
-            reasons.append("Suspicious email attachment executed")
+        if self.evidence.get("FailedLogins"):
+            explanation.append("Multiple failed logins → brute force risk.")
 
-        if self.evidence["PowerShellExec"]:
-            reasons.append("PowerShell activity indicates possible malware execution")
+        if self.evidence.get("SuspiciousEmail"):
+            explanation.append("Suspicious email → phishing risk.")
 
-        if self.evidence["MalwareSequence"]:
-            reasons.append("Sequence of malicious behavior detected")
+        if self.evidence.get("PowerShellExec"):
+            explanation.append("PowerShell execution → malware risk.")
 
-        if not reasons:
-            return "No significant indicators found. System is normal."
+        if self.evidence.get("BruteForcePattern"):
+            explanation.append("Repeated login pattern strengthens brute force.")
 
-        return "Decision Explanation:\n- " + "\n- ".join(reasons)
+        if self.evidence.get("MalwareSequence"):
+            explanation.append("Execution sequence suggests malware.")
 
-    # -------------------------------
-    # RESPONSES
-    # -------------------------------
-    def _phishing_response(self):
-        if self.evidence["SuspiciousEmail"]:
-            return "Phishing attack likely due to suspicious email activity."
-        return "No phishing indicators."
-
-    def _brute_response(self):
-        if self.evidence["FailedLogins"] and self.evidence["BruteForcePattern"]:
-            return "Brute force attack detected."
-        return "No strong brute force indicators."
-
-    def _malware_response(self):
-        if self.evidence["PowerShellExec"] and self.evidence["MalwareSequence"]:
-            return "Malware execution detected."
-        return "No strong malware indicators."
-
-    def _impact(self):
-        if self.evidence["PowerShellExec"]:
-            return "Impact: HIGH"
-        elif self.evidence["SuspiciousEmail"]:
-            return "Impact: MEDIUM"
-        elif self.evidence["FailedLogins"]:
-            return "ℹImpact: LOW"
-        return "No impact."
+        return "\n".join(explanation)
