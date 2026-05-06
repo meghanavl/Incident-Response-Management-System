@@ -22,12 +22,11 @@ st.set_page_config(
 st.title("SOC Incident Response Decision Support System")
 
 st.write("""
-This AI assistant helps SOC analysts during security incidents.
+This system assists SOC analysts during security incidents by:
 
-Features:
-- Detect attack indicators from logs
-- Predict attack probability
-- Recommend mitigation actions
+- Detecting attack indicators from predefined logs
+- Predicting attack probability
+- Recommending mitigation actions
 - Historical incident learning
 - Knowledge graph visualization
 - Chat-based querying
@@ -41,34 +40,23 @@ st.divider()
 scenario = st.selectbox(
     "Select Attack Scenario",
     [
-        "bruteforce",
-        "phishing",
-        "malware",
-        "exfiltration",
-        "mixed"
+        "Bruteforce",
+        "Phishing",
+        "Malware",
+        "Exfiltration",
+        "Mixed"
     ]
 )
 
 # ------------------------------------------------
-# SIMULATION
+# SIMULATION 
 # ------------------------------------------------
 if st.button("Simulate Security Incident"):
 
     parser = LogParser()
-
-    st.subheader("Streaming Logs")
-
-    log_placeholder = st.empty()
-
     all_logs = []
-
     for log in parser.stream_logs(scenario=scenario):
-
         all_logs.append(log)
-
-        log_placeholder.code(
-            "\n".join(all_logs)
-        )
 
     # ------------------------------------------------
     # EVIDENCE EXTRACTION
@@ -106,16 +94,10 @@ if st.button("Simulate Security Incident"):
     else:
         impact = "NONE"
 
-    # ------------------------------------------------
-    # RECOMMENDATIONS
-    # ------------------------------------------------
-    recommendations = model.recommend_from_history(
-        evidence
-    )
 
-    # ------------------------------------------------
-    # SAVE INCIDENT
-    # ------------------------------------------------
+    recommendations = model.recommend_from_history(evidence)
+
+
     model.save_incident(evidence)
 
     # ------------------------------------------------
@@ -160,8 +142,11 @@ if "evidence" in st.session_state:
 
     st.subheader("Extracted Evidence")
 
-    st.json(
-        st.session_state["evidence"]
+    st.json(st.session_state["evidence"])
+else:
+    st.info(
+        "No incident evidence available yet."
+        "Run a security incident simulation first."
     )
 
 # ------------------------------------------------
@@ -173,16 +158,16 @@ if "results" in st.session_state:
 
     st.subheader("Attack Probabilities")
 
-    st.write("Brute Force Attack")
+    st.write("Brute Force Attack: ")
     st.write(results["brute"])
 
-    st.write("Phishing Attack")
+    st.write("Phishing Attack: ")
     st.write(results["phishing"])
 
-    st.write("Malware Execution")
+    st.write("Malware Execution: ")
     st.write(results["malware"])
 
-    st.write("Data Exfiltration")
+    st.write("Data Exfiltration: ")
     st.write(results["exfiltration"])
     
 
@@ -231,7 +216,7 @@ if "evidence" in st.session_state:
 
     graph = AttackKnowledgeGraph()
 
-    graph.build_graph()
+    graph.build_graph(evidence)
 
     fig, ax = plt.subplots(
         figsize=(10, 7)

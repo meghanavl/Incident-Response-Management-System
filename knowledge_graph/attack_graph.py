@@ -7,7 +7,7 @@ class AttackKnowledgeGraph:
     def __init__(self):
         self.graph = nx.DiGraph()
 
-    def build_graph(self):
+    def build_graph(self, evidence=None):
         # Indicators
         indicators = [
             "Multiple Failed Logins",
