@@ -1,7 +1,6 @@
 # file: evidence_collection/log_parser.py
 
 import time
-import random
 from collections import deque
 
 
@@ -34,10 +33,18 @@ class LogParser:
                 "POWERSHELL suspicious_script.ps1",
             ],
 
+            "exfiltration": [
+                "POWERSHELL suspicious_script.ps1",
+                "LARGE_OUTBOUND_TRANSFER size=2GB destination=185.22.10.5",
+                "UNUSUAL_FTP_UPLOAD destination=external_server",
+                "SUSPICIOUS_DATA_TRANSFER"
+            ],
+
             "mixed": [
                 "LOGIN_FAILED user=admin",
                 "EMAIL_ATTACHMENT_EXECUTED file=invoice.exe",
                 "POWERSHELL suspicious_script.ps1",
+                "LARGE_OUTBOUND_TRANSFER size=1GB",
                 "LOGIN_FAILED user=root",
             ]
         }
@@ -58,10 +65,13 @@ class LogParser:
             "SuspiciousEmail": 0,
             "PowerShellExec": 0,
             "BruteForcePattern": 0,
-            "MalwareSequence": 0
+            "MalwareSequence": 0,
+            "DataExfiltrationPattern": 0
         }
 
-        # ---------------- BASIC ----------------
+        # --------------------------------
+        # BASIC INDICATORS
+        # --------------------------------
         for log in self.logs:
 
             if "LOGIN_FAILED" in log:
@@ -73,14 +83,33 @@ class LogParser:
             if "POWERSHELL" in log:
                 evidence["PowerShellExec"] = 1
 
-        # ---------------- PATTERNS ----------------
+            if (
+                "LARGE_OUTBOUND_TRANSFER" in log
+                or "UNUSUAL_FTP_UPLOAD" in log
+                or "SUSPICIOUS_DATA_TRANSFER" in log
+            ):
+                evidence["DataExfiltrationPattern"] = 1
 
-        failed_count = sum(1 for log in self.logs if "LOGIN_FAILED" in log)
+        # --------------------------------
+        # BRUTE FORCE PATTERN
+        # --------------------------------
+        failed_count = sum(
+            1 for log in self.logs
+            if "LOGIN_FAILED" in log
+        )
+
         if failed_count >= 3:
             evidence["BruteForcePattern"] = 1
 
+        # --------------------------------
+        # MALWARE EXECUTION SEQUENCE
+        # --------------------------------
         for i in range(len(self.logs) - 1):
-            if "POWERSHELL" in self.logs[i] and "EMAIL_ATTACHMENT_EXECUTED" in self.logs[i + 1]:
+
+            if (
+                "POWERSHELL" in self.logs[i]
+                and "EMAIL_ATTACHMENT_EXECUTED" in self.logs[i + 1]
+            ):
                 evidence["MalwareSequence"] = 1
 
         return evidence

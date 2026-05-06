@@ -1,4 +1,5 @@
 # file: soc_chatbot.py
+
 import sys
 import os
 
@@ -13,7 +14,10 @@ from bayesian_model.risk_model import RiskPredictionModel
 from knowledge_graph.attack_graph import AttackKnowledgeGraph
 from chatbot.soc_chat_engine import SOCChatEngine
 
-st.set_page_config(page_title="SOC Incident Response Assistant", layout="wide")
+st.set_page_config(
+    page_title="SOC Incident Response Assistant",
+    layout="wide"
+)
 
 st.title("SOC Incident Response Decision Support System")
 
@@ -24,83 +28,147 @@ Features:
 - Detect attack indicators from logs
 - Predict attack probability
 - Recommend mitigation actions
+- Historical incident learning
+- Knowledge graph visualization
 - Chat-based querying
 """)
 
 st.divider()
 
-# -------------------------------
-# SCENARIO
-# -------------------------------
+# ------------------------------------------------
+# SCENARIO SELECTION
+# ------------------------------------------------
 scenario = st.selectbox(
     "Select Attack Scenario",
-    ["bruteforce", "phishing", "malware", "mixed"]
+    [
+        "bruteforce",
+        "phishing",
+        "malware",
+        "exfiltration",
+        "mixed"
+    ]
 )
 
-# -------------------------------
-# SIMULATION BUTTON
-# -------------------------------
+# ------------------------------------------------
+# SIMULATION
+# ------------------------------------------------
 if st.button("Simulate Security Incident"):
 
     parser = LogParser()
 
+    st.subheader("Streaming Logs")
+
     log_placeholder = st.empty()
+
     all_logs = []
 
     for log in parser.stream_logs(scenario=scenario):
-        all_logs.append(log)
-        log_placeholder.code("\n".join(all_logs))
 
+        all_logs.append(log)
+
+        log_placeholder.code(
+            "\n".join(all_logs)
+        )
+
+    # ------------------------------------------------
+    # EVIDENCE EXTRACTION
+    # ------------------------------------------------
     evidence = parser.analyze_stream()
 
+    # ------------------------------------------------
+    # MODEL
+    # ------------------------------------------------
     model = RiskPredictionModel()
 
     brute = model.predict_bruteforce(evidence)
+
     phishing = model.predict_phishing(evidence)
+
     malware = model.predict_malware(evidence)
 
-    # impact
-    if evidence["PowerShellExec"]:
+    exfiltration = model.predict_exfiltration(evidence)
+
+    # ------------------------------------------------
+    # IMPACT
+    # ------------------------------------------------
+    if evidence.get("DataExfiltrationPattern"):
+        impact = "CRITICAL"
+
+    elif evidence.get("PowerShellExec"):
         impact = "HIGH"
-    elif evidence["SuspiciousEmail"]:
+
+    elif evidence.get("SuspiciousEmail"):
         impact = "MEDIUM"
-    elif evidence["FailedLogins"]:
+
+    elif evidence.get("FailedLogins"):
         impact = "LOW"
+
     else:
         impact = "NONE"
 
-    # recommendations
-    recommendations = model.recommend_from_history(evidence)
+    # ------------------------------------------------
+    # RECOMMENDATIONS
+    # ------------------------------------------------
+    recommendations = model.recommend_from_history(
+        evidence
+    )
 
-    # SAVE EVERYTHING
+    # ------------------------------------------------
+    # SAVE INCIDENT
+    # ------------------------------------------------
+    model.save_incident(evidence)
+
+    # ------------------------------------------------
+    # SESSION STATE
+    # ------------------------------------------------
     st.session_state["logs"] = all_logs
+
     st.session_state["evidence"] = evidence
+
     st.session_state["results"] = {
         "brute": brute,
         "phishing": phishing,
-        "malware": malware
+        "malware": malware,
+        "exfiltration": exfiltration
     }
+
     st.session_state["impact"] = impact
+
     st.session_state["recommendations"] = recommendations
 
-    model.save_incident(evidence)
+# ====================================================
+# PERSISTENT UI
+# ====================================================
 
-# =====================================================
-# 🔥 PERSISTENT UI (THIS FIXES YOUR MAIN ISSUE)
-# =====================================================
-
+# ------------------------------------------------
 # LOGS
+# ------------------------------------------------
 if "logs" in st.session_state:
+
     st.subheader("Streaming Logs")
-    st.code("\n".join(st.session_state["logs"]))
 
+    st.code(
+        "\n".join(
+            st.session_state["logs"]
+        )
+    )
+
+# ------------------------------------------------
 # EVIDENCE
+# ------------------------------------------------
 if "evidence" in st.session_state:
-    st.subheader("Extracted Evidence")
-    st.json(st.session_state["evidence"])
 
+    st.subheader("Extracted Evidence")
+
+    st.json(
+        st.session_state["evidence"]
+    )
+
+# ------------------------------------------------
 # RESULTS
+# ------------------------------------------------
 if "results" in st.session_state:
+
     results = st.session_state["results"]
 
     st.subheader("Attack Probabilities")
@@ -114,63 +182,127 @@ if "results" in st.session_state:
     st.write("Malware Execution")
     st.write(results["malware"])
 
+    st.write("Data Exfiltration")
+    st.write(results["exfiltration"])
+    
+
+# ------------------------------------------------
 # IMPACT
+# ------------------------------------------------
 if "impact" in st.session_state:
+
     st.subheader("Impact Level")
-    st.write(st.session_state["impact"])
 
+    impact = st.session_state["impact"]
+
+    if impact == "CRITICAL":
+        st.error(impact)
+
+    elif impact == "HIGH":
+        st.error(impact)
+
+    elif impact == "MEDIUM":
+        st.warning(impact)
+
+    elif impact == "LOW":
+        st.info(impact)
+
+    else:
+        st.success(impact)
+
+# ------------------------------------------------
 # RECOMMENDATIONS
+# ------------------------------------------------
 if "recommendations" in st.session_state:
-    st.subheader("Recommended Actions")
-    for r in st.session_state["recommendations"]:
-        st.success(r)
 
-# GRAPH
+    st.subheader("Recommended Actions")
+
+    for recommendation in st.session_state[
+        "recommendations"
+    ]:
+        st.success(recommendation)
+
+# ------------------------------------------------
+# KNOWLEDGE GRAPH
+# ------------------------------------------------
 if "evidence" in st.session_state:
+
     st.subheader("Attack Knowledge Graph")
 
     graph = AttackKnowledgeGraph()
+
     graph.build_graph()
 
-    fig, ax = plt.subplots(figsize=(10, 7))
-    pos = nx.spring_layout(graph.graph)
+    fig, ax = plt.subplots(
+        figsize=(10, 7)
+    )
+
+    pos = nx.spring_layout(
+        graph.graph
+    )
 
     nx.draw(
         graph.graph,
         pos,
         with_labels=True,
         node_color="lightblue",
-        node_size=1000,
+        node_size=1200,
+        font_size=8,
         ax=ax
     )
 
     st.pyplot(fig)
 
-# -------------------------------
-# WHY THIS DECISION
-# -------------------------------
-if "evidence" in st.session_state:
-    st.subheader("Why this decision?")
-
-    engine = SOCChatEngine(st.session_state["evidence"])
-    explanation = engine.explain_decision()
-
-    st.info(explanation)
-
-# -------------------------------
+# ------------------------------------------------
 # CHATBOT
-# -------------------------------
+# ------------------------------------------------
 st.divider()
+
 st.subheader("SOC Assistant Chat")
 
-user_input = st.text_input("Ask something")
+if "chat_history" not in st.session_state:
+    st.session_state["chat_history"] = []
+
+user_input = st.chat_input(
+    "Ask something about the incident..."
+)
 
 if user_input:
-    if "evidence" in st.session_state:
-        model = RiskPredictionModel()
-        engine = SOCChatEngine(st.session_state["evidence"])
 
-        response = engine.process_query(user_input, model)
-        st.write(response)
+    if "evidence" not in st.session_state:
+
+        st.warning(
+            "Run simulation first."
+        )
+
     else:
-        st.warning("Run simulation first.")
+
+        model = RiskPredictionModel()
+
+        engine = SOCChatEngine(
+            st.session_state["evidence"]
+        )
+
+        response = engine.process_query(
+            user_input,
+            model
+        )
+
+        st.session_state["chat_history"].append({
+            "role": "user",
+            "message": user_input
+        })
+
+        st.session_state["chat_history"].append({
+            "role": "assistant",
+            "message": response
+        })
+
+# ------------------------------------------------
+# CHAT HISTORY
+# ------------------------------------------------
+for chat in st.session_state["chat_history"]:
+
+    with st.chat_message(chat["role"]):
+
+        st.write(chat["message"])

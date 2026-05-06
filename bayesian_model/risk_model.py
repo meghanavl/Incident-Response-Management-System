@@ -18,13 +18,20 @@ class RiskPredictionModel:
         # MODEL STRUCTURE
         # -------------------------------
         self.model = DiscreteBayesianNetwork([
+
+            # Brute Force
             ('FailedLogins', 'BruteForceAttack'),
             ('BruteForcePattern', 'BruteForceAttack'),
 
+            # Phishing
             ('SuspiciousEmail', 'PhishingAttack'),
 
+            # Malware
             ('PowerShellExec', 'MalwareExecution'),
-            ('MalwareSequence', 'MalwareExecution')
+            ('MalwareSequence', 'MalwareExecution'),
+
+            # Data Exfiltration
+            ('DataExfiltrationPattern', 'DataExfiltration')
         ])
 
         # -------------------------------
@@ -39,17 +46,21 @@ class RiskPredictionModel:
             self.data = pd.DataFrame()
 
         # -------------------------------
-        # TRAIN MODEL (only if data exists)
+        # TRAIN MODEL
         # -------------------------------
         if not self.data.empty:
-            self.model.fit(self.data, estimator=MaximumLikelihoodEstimator)
+            self.model.fit(
+                self.data,
+                estimator=MaximumLikelihoodEstimator
+            )
 
         self.inference = VariableElimination(self.model)
 
     # -------------------------------
-    # PREDICTIONS
+    # PREDICT BRUTE FORCE
     # -------------------------------
     def predict_bruteforce(self, evidence):
+
         return self.inference.query(
             variables=['BruteForceAttack'],
             evidence={
@@ -58,7 +69,11 @@ class RiskPredictionModel:
             }
         )
 
+    # -------------------------------
+    # PREDICT PHISHING
+    # -------------------------------
     def predict_phishing(self, evidence):
+
         return self.inference.query(
             variables=['PhishingAttack'],
             evidence={
@@ -66,7 +81,11 @@ class RiskPredictionModel:
             }
         )
 
+    # -------------------------------
+    # PREDICT MALWARE
+    # -------------------------------
     def predict_malware(self, evidence):
+
         return self.inference.query(
             variables=['MalwareExecution'],
             evidence={
@@ -76,56 +95,96 @@ class RiskPredictionModel:
         )
 
     # -------------------------------
-    # SAVE INCIDENT (LEARNING)
+    # PREDICT EXFILTRATION
+    # -------------------------------
+    def predict_exfiltration(self, evidence):
+
+        return self.inference.query(
+            variables=['DataExfiltration'],
+            evidence={
+                'DataExfiltrationPattern': evidence.get(
+                    "DataExfiltrationPattern", 0
+                )
+            }
+        )
+
+    # -------------------------------
+    # SAVE INCIDENT
     # -------------------------------
     def save_incident(self, evidence):
 
         new_row = {
+
+            # Evidence
             "FailedLogins": evidence.get("FailedLogins", 0),
             "SuspiciousEmail": evidence.get("SuspiciousEmail", 0),
             "PowerShellExec": evidence.get("PowerShellExec", 0),
             "BruteForcePattern": evidence.get("BruteForcePattern", 0),
             "MalwareSequence": evidence.get("MalwareSequence", 0),
+            "DataExfiltrationPattern": evidence.get(
+                "DataExfiltrationPattern", 0
+            ),
 
-            # Correct labels
+            # Labels
             "BruteForceAttack": 1 if (
-                evidence.get("FailedLogins") and evidence.get("BruteForcePattern")
+                evidence.get("FailedLogins")
+                and evidence.get("BruteForcePattern")
             ) else 0,
 
-            "PhishingAttack": evidence.get("SuspiciousEmail", 0),
+            "PhishingAttack": evidence.get(
+                "SuspiciousEmail", 0
+            ),
 
             "MalwareExecution": 1 if (
-                evidence.get("PowerShellExec") or evidence.get("MalwareSequence")
+                evidence.get("PowerShellExec")
+                or evidence.get("MalwareSequence")
             ) else 0,
+
+            "DataExfiltration": evidence.get(
+                "DataExfiltrationPattern", 0
+            )
         }
 
         columns_order = [
+
+            # Evidence
             "FailedLogins",
             "SuspiciousEmail",
             "PowerShellExec",
             "BruteForcePattern",
             "MalwareSequence",
+            "DataExfiltrationPattern",
+
+            # Attacks
             "BruteForceAttack",
             "PhishingAttack",
-            "MalwareExecution"
+            "MalwareExecution",
+            "DataExfiltration"
         ]
 
         df_new = pd.DataFrame([new_row])[columns_order]
 
         if os.path.exists(self.data_path):
+
             try:
                 df_old = pd.read_csv(self.data_path)
                 df_old = df_old.reindex(columns=columns_order)
-                df = pd.concat([df_old, df_new], ignore_index=True)
+
+                df = pd.concat(
+                    [df_old, df_new],
+                    ignore_index=True
+                )
+
             except:
                 df = df_new
+
         else:
             df = df_new
 
         df.to_csv(self.data_path, index=False)
 
     # -------------------------------
-    # HISTORICAL RECOMMENDATION
+    # HISTORICAL RECOMMENDATIONS
     # -------------------------------
     def recommend_from_history(self, evidence):
 
@@ -133,9 +192,14 @@ class RiskPredictionModel:
             return ["No historical data available."]
 
         similar = self.data[
-            (self.data["FailedLogins"] == evidence.get("FailedLogins", 0)) &
-            (self.data["SuspiciousEmail"] == evidence.get("SuspiciousEmail", 0)) &
-            (self.data["PowerShellExec"] == evidence.get("PowerShellExec", 0))
+            (self.data["FailedLogins"] ==
+             evidence.get("FailedLogins", 0)) &
+
+            (self.data["SuspiciousEmail"] ==
+             evidence.get("SuspiciousEmail", 0)) &
+
+            (self.data["PowerShellExec"] ==
+             evidence.get("PowerShellExec", 0))
         ]
 
         if similar.empty:
@@ -144,12 +208,30 @@ class RiskPredictionModel:
         recommendations = []
 
         if similar["BruteForceAttack"].mean() > 0.5:
-            recommendations.append("Lock accounts (based on past incidents)")
+            recommendations.append(
+                "Lock accounts and monitor login activity"
+            )
 
         if similar["PhishingAttack"].mean() > 0.5:
-            recommendations.append("Alert users about phishing emails")
+            recommendations.append(
+                "Alert users and block phishing sender"
+            )
 
         if similar["MalwareExecution"].mean() > 0.5:
-            recommendations.append("Isolate affected machine")
+            recommendations.append(
+                "Isolate affected machine immediately"
+            )
 
-        return recommendations if recommendations else ["No strong historical pattern"]
+        if (
+            "DataExfiltration" in similar.columns
+            and similar["DataExfiltration"].mean() > 0.5
+        ):
+            recommendations.append(
+                "Block outbound traffic and investigate data transfer"
+            )
+
+        return (
+            recommendations
+            if recommendations
+            else ["No strong historical pattern"]
+        )

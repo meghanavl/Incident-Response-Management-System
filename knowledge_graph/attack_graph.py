@@ -56,7 +56,7 @@ class AttackKnowledgeGraph:
     def visualize(self):
         plt.figure(figsize=(10,7))
         pos = nx.spring_layout(self.graph)
-        nx.draw(self.graph, pos, with_labels=True, node_color="lightblue", node_size=2500)
+        nx.draw(self.graph, pos, with_labels=True, node_color="lightblue", node_size=950)
         plt.title("Cyber Attack Knowledge Graph")
         plt.show()
 

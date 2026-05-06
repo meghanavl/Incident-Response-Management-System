@@ -53,10 +53,26 @@ class SOCChatEngine:
     # -------------------------------
     def process_query(self, user_input, model=None):
 
+        user_input = user_input.lower()
+
+        # --------------------------------
+        # DECISION EXPLANATION
+        # --------------------------------
+        if (
+            "why this decision" in user_input
+            or "why was this detected" in user_input
+            or "explain decision" in user_input
+            or "why attack" in user_input
+            or "why" in user_input
+            or "explain" in user_input
+            or "reason" in user_input
+            or "analysis" in user_input
+        ):
+            return self.explain_decision()
+
         if not self.evidence or not model:
             return "No data available. Please run simulation."
 
-        user_input = user_input.lower()
 
         # model-based probabilities
         brute = model.predict_bruteforce(self.evidence)
@@ -105,13 +121,13 @@ class SOCChatEngine:
             return "No evidence available."
 
         if self.evidence.get("PowerShellExec"):
-            return "🔴 HIGH impact due to malware execution."
+            return "HIGH impact due to malware execution."
         elif self.evidence.get("SuspiciousEmail"):
-            return "🟠 MEDIUM impact due to phishing."
+            return "MEDIUM impact due to phishing."
         elif self.evidence.get("FailedLogins"):
-            return "🟡 LOW impact due to login anomalies."
+            return "LOW impact due to login anomalies."
 
-        return "🟢 No significant threat."
+        return "No significant threat."
 
     # -------------------------------
     # SUMMARY
