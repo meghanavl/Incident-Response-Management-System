@@ -247,10 +247,7 @@ if user_input:
             st.session_state["evidence"]
         )
 
-        response = engine.process_query(
-            user_input,
-            model
-        )
+        response = engine.process_query(user_input)
 
         st.session_state["chat_history"].append({
             "role": "user",

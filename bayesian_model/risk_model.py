@@ -15,7 +15,7 @@ class RiskPredictionModel:
 
         # MODEL STRUCTURE
         self.model = DiscreteBayesianNetwork([
-
+        # creating a relationship graph of sorts here
             # Brute Force
             ('FailedLogins', 'BruteForceAttack'),
             ('BruteForcePattern', 'BruteForceAttack'),
