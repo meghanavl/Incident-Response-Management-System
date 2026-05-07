@@ -30,6 +30,14 @@ class SOCChatEngine:
                 "is system infected?",
                 "script execution issue"
             ],
+            "exfiltration": [
+            "data exfiltration",
+            "data theft",
+            "suspicious transfer",
+            "large outbound traffic",
+            "ftp upload",
+            "is data being stolen?"
+            ],
             "impact": [
                 "what is the impact?",
                 "how severe is this?",
@@ -78,10 +86,12 @@ class SOCChatEngine:
         brute = model.predict_bruteforce(self.evidence)
         phishing = model.predict_phishing(self.evidence)
         malware = model.predict_malware(self.evidence)
+        exfiltration = model.predict_exfiltration(self.evidence)
 
         brute_prob = brute.values[1]
         phishing_prob = phishing.values[1]
         malware_prob = malware.values[1]
+        exfiltration_prob = exfiltration.values[1]
 
         # -------------------------------
         # SMART RESPONSE
@@ -92,6 +102,7 @@ class SOCChatEngine:
                 f"- Brute Force: {brute_prob:.2f}\n"
                 f"- Phishing: {phishing_prob:.2f}\n"
                 f"- Malware: {malware_prob:.2f}"
+                f"- Data Exfiltration: {exfiltration_prob:.2f}"
             )
 
         elif "phishing" in user_input:
@@ -102,6 +113,9 @@ class SOCChatEngine:
 
         elif "malware" in user_input or "powershell" in user_input:
             return f"Malware probability: {malware_prob:.2f}"
+    
+        elif ("exfiltration" in user_input or "data theft" in user_input or "transfer" in user_input or "ftp" in user_input):
+            return (f"Data exfiltration probability: " f"{exfiltration_prob:.2f}" )
 
         elif "impact" in user_input:
             return self._impact_response()
@@ -117,17 +131,24 @@ class SOCChatEngine:
     # -------------------------------
     def _impact_response(self):
 
-        if not self.evidence:
-            return "No evidence available."
+    if not self.evidence:
+        return "No evidence available."
 
-        if self.evidence.get("PowerShellExec"):
-            return "HIGH impact due to malware execution."
-        elif self.evidence.get("SuspiciousEmail"):
-            return "MEDIUM impact due to phishing."
-        elif self.evidence.get("FailedLogins"):
-            return "LOW impact due to login anomalies."
+    if self.evidence.get("DataExfiltrationPattern"):
+        return (
+            "CRITICAL impact due to suspicious "
+            "data transfer activity.")
 
-        return "No significant threat."
+    elif self.evidence.get("PowerShellExec"):
+        return "HIGH impact due to malware execution."
+
+    elif self.evidence.get("SuspiciousEmail"):
+        return "MEDIUM impact due to phishing."
+
+    elif self.evidence.get("FailedLogins"):
+        return "LOW impact due to login anomalies."
+
+    return "No significant threat."
 
     # -------------------------------
     # SUMMARY
@@ -139,9 +160,17 @@ class SOCChatEngine:
 
         return (
             f"Summary:\n"
-            f"- Failed Logins: {self.evidence.get('FailedLogins')}\n"
-            f"- Suspicious Email: {self.evidence.get('SuspiciousEmail')}\n"
-            f"- PowerShell Exec: {self.evidence.get('PowerShellExec')}"
+            f"- Failed Logins: "
+            f"{self.evidence.get('FailedLogins')}\n"
+
+            f"- Suspicious Email: "
+            f"{self.evidence.get('SuspiciousEmail')}\n"
+
+            f"- PowerShell Exec: "
+            f"{self.evidence.get('PowerShellExec')}\n"
+
+            f"- Data Exfiltration Pattern: "
+            f"{self.evidence.get('DataExfiltrationPattern')}"
         )
 
     # -------------------------------
@@ -168,5 +197,8 @@ class SOCChatEngine:
 
         if self.evidence.get("MalwareSequence"):
             explanation.append("Execution sequence suggests malware.")
+
+        if self.evidence.get("DataExfiltrationPattern"):
+            explanation.append( "Suspicious outbound transfer activity => possible data exfiltration.")
 
         return "\n".join(explanation)

@@ -66,7 +66,10 @@ class LogParser:
             "PowerShellExec": 0,
             "BruteForcePattern": 0,
             "MalwareSequence": 0,
-            "DataExfiltrationPattern": 0
+            "DataExfiltrationPattern": 0,
+
+            "ExfiltrationRiskScore": 0,
+            "ExfiltrationSeverity": "NONE"
         }
 
         # --------------------------------
@@ -82,13 +85,6 @@ class LogParser:
 
             if "POWERSHELL" in log:
                 evidence["PowerShellExec"] = 1
-
-            if (
-                "LARGE_OUTBOUND_TRANSFER" in log
-                or "UNUSUAL_FTP_UPLOAD" in log
-                or "SUSPICIOUS_DATA_TRANSFER" in log
-            ):
-                evidence["DataExfiltrationPattern"] = 1
 
         # --------------------------------
         # BRUTE FORCE PATTERN
@@ -111,5 +107,49 @@ class LogParser:
                 and "EMAIL_ATTACHMENT_EXECUTED" in self.logs[i + 1]
             ):
                 evidence["MalwareSequence"] = 1
+        # --------------------------------
+        # DATA EXFILTRATION RISK SCORING
+        # --------------------------------
+        risk_score = 0
 
+        for log in self.logs:
+
+            if "LARGE_OUTBOUND_TRANSFER" in log:
+                risk_score += 40
+
+            if "UNUSUAL_FTP_UPLOAD" in log:
+                risk_score += 40
+
+            if "SUSPICIOUS_DATA_TRANSFER" in log:
+                risk_score += 30
+
+            if "POWERSHELL" in log:
+                risk_score += 20
+
+            if "destination=" in log:
+                risk_score += 10
+
+        evidence["ExfiltrationRiskScore"] = risk_score
+        # --------------------------------
+        # SEVERITY LEVELS
+        # --------------------------------
+        if risk_score >= 80:
+
+            evidence["DataExfiltrationPattern"] = 1
+            evidence["ExfiltrationSeverity"] = "CRITICAL"
+
+        elif risk_score >= 50:
+
+            evidence["DataExfiltrationPattern"] = 1
+            evidence["ExfiltrationSeverity"] = "HIGH"
+
+        elif risk_score >= 30:
+
+            evidence["DataExfiltrationPattern"] = 1
+            evidence["ExfiltrationSeverity"] = "MEDIUM"
+
+        elif risk_score > 0:
+
+            evidence["DataExfiltrationPattern"] = 0
+            evidence["ExfiltrationSeverity"] = "LOW"
         return evidence
