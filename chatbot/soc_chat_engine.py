@@ -1,5 +1,3 @@
-# file: chatbot/soc_chat_engine.py
-
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -47,7 +45,8 @@ class SOCChatEngine:
             "general": [
                 "what is happening?",
                 "summarize incident",
-                "what do you see?"
+                "what do you see?",
+                "analyse this incident"
             ]
         }
 
@@ -56,16 +55,12 @@ class SOCChatEngine:
             for key, sentences in self.intents.items()
         }
 
-    # -------------------------------
     # MAIN CHAT FUNCTION
-    # -------------------------------
     def process_query(self, user_input, model=None):
 
         user_input = user_input.lower()
 
-        # --------------------------------
         # DECISION EXPLANATION
-        # --------------------------------
         if (
             "why this decision" in user_input
             or "why was this detected" in user_input
@@ -74,7 +69,7 @@ class SOCChatEngine:
             or "why" in user_input
             or "explain" in user_input
             or "reason" in user_input
-            or "analysis" in user_input
+            or "analyse" in user_input
         ):
             return self.explain_decision()
 
@@ -93,9 +88,7 @@ class SOCChatEngine:
         malware_prob = malware.values[1]
         exfiltration_prob = exfiltration.values[1]
 
-        # -------------------------------
         # SMART RESPONSE
-        # -------------------------------
         if "summary" in user_input or "attack" in user_input:
             return (
                 f"Detected Threats:\n"
@@ -126,33 +119,30 @@ class SOCChatEngine:
         else:
             return "Ask about attacks, impact, or summary."
 
-    # -------------------------------
     # IMPACT RESPONSE
-    # -------------------------------
     def _impact_response(self):
 
-    if not self.evidence:
-        return "No evidence available."
+        if not self.evidence:
+            return "No evidence available."
 
-    if self.evidence.get("DataExfiltrationPattern"):
-        return (
-            "CRITICAL impact due to suspicious "
-            "data transfer activity.")
+        if self.evidence.get("DataExfiltrationPattern"):
+            return (
+                "CRITICAL impact due to suspicious "
+                "data transfer activity."
+            )
 
-    elif self.evidence.get("PowerShellExec"):
-        return "HIGH impact due to malware execution."
+        elif self.evidence.get("PowerShellExec"):
+            return "HIGH impact due to malware execution."
 
-    elif self.evidence.get("SuspiciousEmail"):
-        return "MEDIUM impact due to phishing."
+        elif self.evidence.get("SuspiciousEmail"):
+            return "MEDIUM impact due to phishing."
 
-    elif self.evidence.get("FailedLogins"):
-        return "LOW impact due to login anomalies."
+        elif self.evidence.get("FailedLogins"):
+            return "LOW impact due to login anomalies."
 
-    return "No significant threat."
+        return "No significant threat."
 
-    # -------------------------------
     # SUMMARY
-    # -------------------------------
     def _summary_response(self):
 
         if not self.evidence:
@@ -173,9 +163,8 @@ class SOCChatEngine:
             f"{self.evidence.get('DataExfiltrationPattern')}"
         )
 
-    # -------------------------------
     # EXPLANATION
-    # -------------------------------
+
     def explain_decision(self):
 
         if not self.evidence:

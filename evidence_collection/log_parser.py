@@ -103,8 +103,8 @@ class LogParser:
         for i in range(len(self.logs) - 1):
 
             if (
-                "POWERSHELL" in self.logs[i]
-                and "EMAIL_ATTACHMENT_EXECUTED" in self.logs[i + 1]
+                "EMAIL_ATTACHMENT_EXECUTED" in self.logs[i]
+                and "POWERSHELL" in self.logs[i + 1]
             ):
                 evidence["MalwareSequence"] = 1
         # --------------------------------

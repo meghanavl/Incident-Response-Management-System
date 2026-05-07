@@ -1,5 +1,3 @@
-# file: bayesian_model/risk_model.py
-
 import pandas as pd
 import os
 
@@ -14,9 +12,8 @@ class RiskPredictionModel:
 
         self.data_path = data_path
 
-        # -------------------------------
+
         # MODEL STRUCTURE
-        # -------------------------------
         self.model = DiscreteBayesianNetwork([
 
             # Brute Force
@@ -34,9 +31,7 @@ class RiskPredictionModel:
             ('DataExfiltrationPattern', 'DataExfiltration')
         ])
 
-        # -------------------------------
         # LOAD DATA
-        # -------------------------------
         if os.path.exists(self.data_path):
             try:
                 self.data = pd.read_csv(self.data_path)
@@ -45,9 +40,7 @@ class RiskPredictionModel:
         else:
             self.data = pd.DataFrame()
 
-        # -------------------------------
         # TRAIN MODEL
-        # -------------------------------
         if not self.data.empty:
             self.model.fit(
                 self.data,
@@ -56,9 +49,8 @@ class RiskPredictionModel:
 
         self.inference = VariableElimination(self.model)
 
-    # -------------------------------
+    
     # PREDICT BRUTE FORCE
-    # -------------------------------
     def predict_bruteforce(self, evidence):
 
         return self.inference.query(
@@ -69,9 +61,8 @@ class RiskPredictionModel:
             }
         )
 
-    # -------------------------------
+    
     # PREDICT PHISHING
-    # -------------------------------
     def predict_phishing(self, evidence):
 
         return self.inference.query(
@@ -80,10 +71,7 @@ class RiskPredictionModel:
                 'SuspiciousEmail': evidence.get("SuspiciousEmail", 0)
             }
         )
-
-    # -------------------------------
     # PREDICT MALWARE
-    # -------------------------------
     def predict_malware(self, evidence):
 
         return self.inference.query(
@@ -94,9 +82,7 @@ class RiskPredictionModel:
             }
         )
 
-    # -------------------------------
     # PREDICT EXFILTRATION
-    # -------------------------------
     def predict_exfiltration(self, evidence):
 
         return self.inference.query(
@@ -108,9 +94,7 @@ class RiskPredictionModel:
             }
         )
 
-    # -------------------------------
     # SAVE INCIDENT
-    # -------------------------------
     def save_incident(self, evidence):
 
         new_row = {
@@ -183,9 +167,7 @@ class RiskPredictionModel:
 
         df.to_csv(self.data_path, index=False)
 
-    # -------------------------------
     # HISTORICAL RECOMMENDATIONS
-    # -------------------------------
     def recommend_from_history(self, evidence):
 
         if self.data.empty:
