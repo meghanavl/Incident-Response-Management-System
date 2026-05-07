@@ -1,67 +1,138 @@
+import random
 import networkx as nx
 import matplotlib.pyplot as plt
 
 
-class AttackKnowledgeGraph:
+class AttackGraph:
 
-    def __init__(self):
-        self.graph = nx.DiGraph()
+    def __init__(self, logs):
 
-    def build_graph(self, evidence=None):
-        # Indicators
-        indicators = [
-            "Multiple Failed Logins",
-            "Suspicious Email Attachment",
-            "Unusual PowerShell Execution",
-            "Large Outbound Traffic"
-        ]
+        self.logs = logs
 
-        # Attacks
-        attacks = [
-            "Brute Force Attack",
-            "Phishing Attack",
-            "Malware Execution",
-            "Data Exfiltration"
-        ]
+    def build_graph(self):
 
-        # Mitigations
-        mitigations = [
-            "Lock Account",
-            "User Awareness Training",
-            "Isolate Host Machine",
-            "Block Network Traffic"
-        ]
+        graph = nx.DiGraph()
 
-        # Add nodes
-        for i in indicators:
-            self.graph.add_node(i, type="indicator")
+        sampled_logs = self.logs.sample(
+            20,
+            replace=False
+        )
 
-        for a in attacks:
-            self.graph.add_node(a, type="attack")
+        users_seen = {}
 
-        for m in mitigations:
-            self.graph.add_node(m, type="mitigation")
+        for _, row in sampled_logs.iterrows():
 
-        # Relationships
-        self.graph.add_edge("Multiple Failed Logins", "Brute Force Attack")
-        self.graph.add_edge("Suspicious Email Attachment", "Phishing Attack")
-        self.graph.add_edge("Unusual PowerShell Execution", "Malware Execution")
-        self.graph.add_edge("Large Outbound Traffic", "Data Exfiltration")
+            user = str(row["user"])
 
-        self.graph.add_edge("Brute Force Attack", "Lock Account")
-        self.graph.add_edge("Phishing Attack", "User Awareness Training")
-        self.graph.add_edge("Malware Execution", "Isolate Host Machine")
-        self.graph.add_edge("Data Exfiltration", "Block Network Traffic")
+            host = str(row["pc"])
 
-    def visualize(self):
-        plt.figure(figsize=(10,7))
-        pos = nx.spring_layout(self.graph)
-        nx.draw(self.graph, pos, with_labels=True, node_color="lightblue", node_size=950)
-        plt.title("Cyber Attack Knowledge Graph")
-        plt.show()
+            activity = str(row["activity"])
 
+            user_node = f"USER:{user}"
 
-if __name__ == "__main__":
-    akg = AttackKnowledgeGraph()
-    akg.build_graph()
-    akg.visualize()
+            host_node = f"HOST:{host}"
+
+            graph.add_node(user_node)
+
+            graph.add_node(host_node)
+
+            graph.add_edge(
+                user_node,
+                host_node
+            )
+
+            if activity.lower() == "logon":
+
+                graph.add_node(
+                    "AUTH_ACTIVITY"
+                )
+
+                graph.add_edge(
+                    host_node,
+                    "AUTH_ACTIVITY"
+                )
+
+            if user in users_seen:
+
+                previous_host = users_seen[user]
+
+                if previous_host != host:
+
+                    lateral_node = (
+                        f"LATERAL_MOVE:{host}"
+                    )
+
+                    graph.add_node(
+                        lateral_node
+                    )
+
+                    graph.add_edge(
+                        previous_host,
+                        lateral_node
+                    )
+
+                    graph.add_edge(
+                        lateral_node,
+                        host_node
+                    )
+
+            users_seen[user] = host
+
+            if random.random() > 0.7:
+
+                alert_node = (
+                    f"ALERT:{host}"
+                )
+
+                graph.add_node(alert_node)
+
+                graph.add_edge(
+                    host_node,
+                    alert_node
+                )
+
+        return graph
+
+    def draw_graph(self):
+
+        graph = self.build_graph()
+
+        plt.figure(figsize=(14, 8))
+
+        pos = nx.spring_layout(
+            graph,
+            seed=random.randint(1, 9999),
+            k=1.5
+        )
+
+        node_colors = []
+
+        for node in graph.nodes():
+
+            if "ALERT" in node:
+
+                node_colors.append("red")
+
+            elif "LATERAL" in node:
+
+                node_colors.append("orange")
+
+            elif "HOST" in node:
+
+                node_colors.append("lightgreen")
+
+            else:
+
+                node_colors.append("skyblue")
+
+        nx.draw(
+            graph,
+            pos,
+            with_labels=True,
+            node_color=node_colors,
+            node_size=2000,
+            font_size=7,
+            arrows=True
+        )
+
+        return plt

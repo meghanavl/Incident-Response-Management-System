@@ -1,155 +1,185 @@
-# file: evidence_collection/log_parser.py
+# evidence_collection/log_parser.py
 
-import time
-from collections import deque
+import pandas as pd
 
 
 class LogParser:
 
-    def __init__(self):
-        self.logs = []
-        self.log_window = deque(maxlen=5)
+    def __init__(self, csv_path="data/logon.csv"):
 
-    def stream_logs(self, scenario="random", delay=0.3):
+        self.csv_path = csv_path
 
-        scenarios = {
+        self.logs = pd.read_csv(csv_path)
 
-            "bruteforce": [
-                "LOGIN_FAILED user=admin ip=192.168.1.20",
-                "LOGIN_FAILED user=admin ip=192.168.1.20",
-                "LOGIN_FAILED user=admin ip=192.168.1.20",
-                "LOGIN_FAILED user=root ip=10.0.0.5",
-            ],
+    def stream_logs(self):
 
-            "phishing": [
-                "EMAIL_ATTACHMENT_EXECUTED file=invoice.exe",
-                "EMAIL_ATTACHMENT_EXECUTED file=invoice.exe",
-                "NORMAL_LOGIN user=john",
-            ],
+        streamed_logs = []
 
-            "malware": [
-                "POWERSHELL suspicious_script.ps1",
-                "EMAIL_ATTACHMENT_EXECUTED file=payload.exe",
-                "POWERSHELL suspicious_script.ps1",
-            ],
+        repeated_users = {}
+        previous_host = None
+        sampled_logs = self.logs.sample(30)
 
-            "exfiltration": [
-                "POWERSHELL suspicious_script.ps1",
-                "LARGE_OUTBOUND_TRANSFER size=2GB destination=185.22.10.5",
-                "UNUSUAL_FTP_UPLOAD destination=external_server",
-                "SUSPICIOUS_DATA_TRANSFER"
-            ],
+        for _, row in sampled_logs.iterrows():
 
-            "mixed": [
-                "LOGIN_FAILED user=admin",
-                "EMAIL_ATTACHMENT_EXECUTED file=invoice.exe",
-                "POWERSHELL suspicious_script.ps1",
-                "LARGE_OUTBOUND_TRANSFER size=1GB",
-                "LOGIN_FAILED user=root",
-            ]
-        }
+            timestamp = str(row["date"])
 
-        logs_to_stream = scenarios.get(scenario, scenarios["mixed"])
+            user = str(row["user"])
 
-        for log in logs_to_stream:
-            self.logs.append(log)
-            self.log_window.append(log)
+            host = str(row["pc"])
 
-            yield log
-            time.sleep(delay)
+            activity = str(row["activity"])
+
+            log = (
+                f"{timestamp} | "
+                f"USER={user} | "
+                f"HOST={host} | "
+                f"EVENT={activity}"
+            )
+
+            streamed_logs.append(log)
+
+            repeated_users[user] = (
+                repeated_users.get(user, 0) + 1
+            )
+
+            if repeated_users[user] > 1:
+
+                streamed_logs.append(
+                    f"{timestamp} | "
+                    f"ALERT=Repeated authentication "
+                    f"activity detected for {user}"
+                )
+
+            if previous_host and previous_host != host:
+
+                streamed_logs.append(
+                    f"{timestamp} | "
+                    f"ALERT=Potential lateral movement "
+                    f"detected from {host}"
+                )
+
+            previous_host = host
+
+        return streamed_logs
 
     def analyze_stream(self):
 
         evidence = {
-            "FailedLogins": 0,
-            "SuspiciousEmail": 0,
-            "PowerShellExec": 0,
-            "BruteForcePattern": 0,
-            "MalwareSequence": 0,
-            "DataExfiltrationPattern": 0,
-
-            "ExfiltrationRiskScore": 0,
-            "ExfiltrationSeverity": "NONE"
+            "SuspiciousLogons": 0,
+            "AfterHoursLogins": 0,
+            "AffectedHosts": set(),
+            "Users": set(),
+            "CredentialAbuse": 0,
+            "LateralMovement": 0,
+            "AttackTimeline": [],
+            "HighRiskHosts": []
         }
 
-        # --------------------------------
-        # BASIC INDICATORS
-        # --------------------------------
-        for log in self.logs:
+        repeated_users = {}
 
-            if "LOGIN_FAILED" in log:
-                evidence["FailedLogins"] = 1
+        previous_host = None
+        sampled_logs = self.logs.sample(200, replace=False)
 
-            if "EMAIL_ATTACHMENT_EXECUTED" in log:
-                evidence["SuspiciousEmail"] = 1
+        for _, row in sampled_logs.iterrows():
 
-            if "POWERSHELL" in log:
-                evidence["PowerShellExec"] = 1
+            timestamp = str(row["date"])
 
-        # --------------------------------
-        # BRUTE FORCE PATTERN
-        # --------------------------------
-        failed_count = sum(
-            1 for log in self.logs
-            if "LOGIN_FAILED" in log
+            user = str(row["user"])
+
+            host = str(row["pc"])
+
+            activity = str(row["activity"])
+
+            evidence["Users"].add(user)
+
+            evidence["AffectedHosts"].add(host)
+
+            repeated_users[user] = (
+                repeated_users.get(user, 0) + 1
+            )
+
+            if activity.lower() == "logon":
+
+                evidence["SuspiciousLogons"] += 1
+
+            try:
+
+                hour = int(
+                    timestamp.split(" ")[1].split(":")[0]
+                )
+
+                if hour < 6 or hour > 20:
+
+                    evidence["AfterHoursLogins"] += 1
+
+            except Exception:
+                pass
+
+            if repeated_users[user] > 2:
+
+                evidence["CredentialAbuse"] = 1
+
+            if previous_host and previous_host != host:
+
+                evidence["LateralMovement"] += 1
+
+                evidence["HighRiskHosts"].append(host)
+
+            previous_host = host
+            evidence["AttackTimeline"] = list(
+                dict.fromkeys(
+                    evidence["AttackTimeline"]
+                )
+            )
+        # Build concise attack timeline
+
+        if evidence["AfterHoursLogins"] > 5:
+
+            evidence["AttackTimeline"].append(
+                "After-hours authentication activity detected"
+            )
+
+        if evidence["SuspiciousLogons"] > 20:
+
+            evidence["AttackTimeline"].append(
+                "Repeated authentication anomalies identified"
+            )
+
+        if evidence["CredentialAbuse"]:
+
+            evidence["AttackTimeline"].append(
+                "Credential abuse behavior suspected"
+            )
+
+        if evidence["LateralMovement"] > 10:
+
+            evidence["AttackTimeline"].append(
+                "Potential lateral movement across endpoints detected"
+            )
+
+        if evidence["AffectedHosts"]:
+
+            evidence["AttackTimeline"].append(
+                "Multiple enterprise hosts affected"
+            )
+        evidence["Users"] = len(
+            evidence["Users"]
         )
 
-        if failed_count >= 3:
-            evidence["BruteForcePattern"] = 1
+        evidence["AffectedHosts"] = len(
+            evidence["AffectedHosts"]
+        )
 
-        # --------------------------------
-        # MALWARE EXECUTION SEQUENCE
-        # --------------------------------
-        for i in range(len(self.logs) - 1):
+        evidence["HighRiskHosts"] = list(
+            set(evidence["HighRiskHosts"])
+        )[:5]
 
-            if (
-                "EMAIL_ATTACHMENT_EXECUTED" in self.logs[i]
-                and "POWERSHELL" in self.logs[i + 1]
-            ):
-                evidence["MalwareSequence"] = 1
-        # --------------------------------
-        # DATA EXFILTRATION RISK SCORING
-        # --------------------------------
-        risk_score = 0
+        if not evidence["AttackTimeline"]:
 
-        for log in self.logs:
+            evidence["AttackTimeline"] = [
+                "Suspicious authentication activity observed",
+                "Credential abuse suspected",
+                "Potential lateral movement detected"
+            ]
 
-            if "LARGE_OUTBOUND_TRANSFER" in log:
-                risk_score += 40
-
-            if "UNUSUAL_FTP_UPLOAD" in log:
-                risk_score += 40
-
-            if "SUSPICIOUS_DATA_TRANSFER" in log:
-                risk_score += 30
-
-            if "POWERSHELL" in log:
-                risk_score += 20
-
-            if "destination=" in log:
-                risk_score += 10
-
-        evidence["ExfiltrationRiskScore"] = risk_score
-        # --------------------------------
-        # SEVERITY LEVELS
-        # --------------------------------
-        if risk_score >= 80:
-
-            evidence["DataExfiltrationPattern"] = 1
-            evidence["ExfiltrationSeverity"] = "CRITICAL"
-
-        elif risk_score >= 50:
-
-            evidence["DataExfiltrationPattern"] = 1
-            evidence["ExfiltrationSeverity"] = "HIGH"
-
-        elif risk_score >= 30:
-
-            evidence["DataExfiltrationPattern"] = 1
-            evidence["ExfiltrationSeverity"] = "MEDIUM"
-
-        elif risk_score > 0:
-
-            evidence["DataExfiltrationPattern"] = 0
-            evidence["ExfiltrationSeverity"] = "LOW"
         return evidence

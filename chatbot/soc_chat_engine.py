@@ -10,43 +10,36 @@ class SOCChatEngine:
     def build_context(self):
 
         return f"""
-You are a SOC cybersecurity assistant.
+You are an expert SOC (Security Operations Center)
+incident response analyst.
+
+You are analyzing enterprise insider threat
+telemetry from the CMU CERT dataset.
 
 Current security evidence:
 {self.evidence}
 
-Rules:
-- Give concise responses
-- Keep answers concise and under 80 words unless the user asks for details.
-- Be clear and professional
-- Focus only on cybersecurity analysis
-- Avoid unnecessary explanations
-- Use bullet points when useful
-- Format responses using short bullet points.
+Your responsibilities:
 
-You can:
-- summarize incidents
-- explain severity
-- identify attack types
-- explain suspicious logs
-- recommend mitigation actions
+- Identify suspicious attacker behavior
+- Infer attack progression
+- Detect possible credential abuse
+- Detect possible lateral movement
+- Explain incident severity
+- Provide threat attribution insights
+- Map behavior to MITRE ATT&CK tactics
+- Recommend response actions
+
+Guidelines:
+
+- Be concise but professional
+- Respond like a real SOC analyst
+- Avoid generic chatbot replies
+- Base conclusions ONLY on evidence
+- Clearly explain your reasoning
 """
 
     def process_query(self, user_query):
-
-        casual_inputs = [
-            "hi",
-            "hello",
-            "hey"
-        ]
-
-        if user_query.lower().strip() in casual_inputs:
-
-            return (
-                "Hello. I am your SOC AI assistant. "
-                "Ask me about the current incident, "
-                "attack severity, suspicious logs, or mitigation steps."
-            )
 
         response = ollama.chat(
 
@@ -63,12 +56,7 @@ You can:
                     "role": "user",
                     "content": user_query
                 }
-            ],
-
-            options={
-                "temperature": 0.3,
-                "num_predict": 500
-            }
+            ]
         )
 
         return response["message"]["content"]

@@ -1,269 +1,479 @@
-import sys
-import os
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# app.py
 
 import streamlit as st
-import matplotlib.pyplot as plt
-import networkx as nx
+from datetime import datetime
 
 from evidence_collection.log_parser import LogParser
-from bayesian_model.risk_model import RiskPredictionModel
-from knowledge_graph.attack_graph import AttackKnowledgeGraph
 from chatbot.soc_chat_engine import SOCChatEngine
+from knowledge_graph.attack_graph import AttackGraph
+
 
 st.set_page_config(
-    page_title="SOC Incident Response Assistant",
+    page_title="AI-Assisted SOC Incident Response Platform",
     layout="wide"
 )
 
-st.title("SOC Incident Response Decision Support System")
+st.title("AI-Assisted SOC Incident Response Platform")
 
 st.write("""
-This system assists SOC analysts during security incidents by:
+This platform simulates an enterprise Security Operations Center (SOC).
 
-- Detecting attack indicators from predefined logs
-- Predicting attack probability
-- Recommending mitigation actions
-- Historical incident learning
-- Knowledge graph visualization
-- Chat-based querying
+Features:
+- Real-world CERT insider threat dataset
+- Live SOC threat feed
+- Threat evidence extraction
+- UEBA analytics
+- Dynamic attack correlation
+- AI-powered SOC assistant
 """)
 
-st.divider()
+st.sidebar.title("SOC Controls")
+
+st.sidebar.success(
+    "CMU CERT Insider Threat Dataset Loaded"
+)
 
 # ------------------------------------------------
-# SCENARIO SELECTION
+# SESSION STATE
 # ------------------------------------------------
-with st.sidebar:
 
-    st.title("SOC Controls")
+if "analysis_complete" not in st.session_state:
+    st.session_state.analysis_complete = False
 
-    scenario = st.selectbox(
-        "Attack Scenario",
-        [
-            "bruteforce",
-            "phishing",
-            "malware",
-            "exfiltration",
-            "mixed"
-        ]
-    )
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-    simulate = st.button("Simulate Incident")
+# ------------------------------------------------
+# RUN ANALYSIS
+# ------------------------------------------------
 
-# SIMULATION
-if simulate:
+run_analysis = st.sidebar.button(
+    "Run Threat Analysis"
+)
+
+if run_analysis:
 
     parser = LogParser()
 
-    all_logs = []
-
-    for log in parser.stream_logs(scenario=scenario):
-        all_logs.append(log)
-
-    # EVIDENCE EXTRACTION
-    evidence = parser.analyze_stream()
-
-    # MODEL
-    model = RiskPredictionModel()
-
-    brute = model.predict_bruteforce(evidence)
-
-    phishing = model.predict_phishing(evidence)
-
-    malware = model.predict_malware(evidence)
-
-    exfiltration = model.predict_exfiltration(evidence)
-
-    # IMPACT
-    if evidence.get("DataExfiltrationPattern"):
-        impact = "CRITICAL"
-
-    elif evidence.get("PowerShellExec"):
-        impact = "HIGH"
-
-    elif evidence.get("SuspiciousEmail"):
-        impact = "MEDIUM"
-
-    elif evidence.get("FailedLogins"):
-        impact = "LOW"
-
-    else:
-        impact = "NONE"
-
-    recommendations = model.recommend_from_history(
-        evidence
+    st.session_state.logs = (
+        parser.stream_logs()
     )
 
-    model.save_incident(evidence)
+    st.session_state.evidence = (
+        parser.analyze_stream()
+    )
 
-    # SESSION STATE
-    st.session_state["logs"] = all_logs
+    st.session_state.parser_logs = (
+        parser.logs
+    )
 
-    st.session_state["evidence"] = evidence
+    st.session_state.analysis_complete = True
 
-    st.session_state["results"] = {
-        "brute": brute,
-        "phishing": phishing,
-        "malware": malware,
-        "exfiltration": exfiltration
-    }
+# ------------------------------------------------
+# DISPLAY ANALYSIS
+# ------------------------------------------------
 
-    st.session_state["impact"] = impact
+if st.session_state.analysis_complete:
 
-    st.session_state["recommendations"] = recommendations
+    logs = st.session_state.logs
 
-# NOW DISPLAYING IT IN UI
+    evidence = st.session_state.evidence
 
-# LOGS
-if "logs" in st.session_state:
-
-    st.subheader("Streaming Logs")
+    st.header("Live SOC Threat Feed")
 
     st.code(
-        "\n".join(st.session_state["logs"])
+        "\n".join(logs),
+        language="text"
     )
 
-# EVIDENCE
-if "evidence" in st.session_state:
+    # --------------------------------------------
+    # EVIDENCE
+    # --------------------------------------------
 
-    st.subheader("Extracted Evidence")
+    st.header("Extracted Security Evidence")
 
-    st.json(st.session_state["evidence"])
-else:
-    st.info(
-        "No incident evidence available yet.\n"
-        "Run a security incident simulation first."
+    st.json(evidence)
+
+    # --------------------------------------------
+    # THREAT SCORES
+    # --------------------------------------------
+
+    st.header("Threat Confidence Scores")
+
+    suspicious_score = min(
+        evidence["SuspiciousLogons"] * 2,
+        100
     )
 
-# RESULTS
-if "results" in st.session_state:
+    lateral_score = min(
+        evidence["LateralMovement"] * 5,
+        100
+    )
 
-    results = st.session_state["results"]
+    credential_score = (
+        80
+        if evidence["CredentialAbuse"]
+        else 20
+    )
 
-    st.subheader("Attack Probabilities")
+    st.write(
+        f"Abnormal Authentication: "
+        f"{suspicious_score}%"
+    )
 
-    st.write("Brute Force Attack: ")
-    st.write(results["brute"])
+    st.progress(
+        suspicious_score / 100
+    )
 
-    st.write("Phishing Attack: ")
-    st.write(results["phishing"])
+    st.write(
+        f"Lateral Movement: "
+        f"{lateral_score}%"
+    )
 
-    st.write("Malware Execution: ")
-    st.write(results["malware"])
+    st.progress(
+        lateral_score / 100
+    )
 
-    st.write("Data Exfiltration: ")
-    st.write(results["exfiltration"])
-    
-# IMPACT
-if "impact" in st.session_state:
+    st.write(
+        f"Credential Abuse: "
+        f"{credential_score}%"
+    )
 
-    st.subheader("Impact Level")
+    st.progress(
+        credential_score / 100
+    )
 
-    impact = st.session_state["impact"]
+    # --------------------------------------------
+    # SEVERITY
+    # --------------------------------------------
 
-    if impact == "CRITICAL":
-        st.error(impact)
+    st.header("Incident Severity Level")
 
-    elif impact == "HIGH":
-        st.error(impact)
+    overall_score = (
+        suspicious_score +
+        lateral_score +
+        credential_score
+    ) / 3
 
-    elif impact == "MEDIUM":
-        st.warning(impact)
+    if overall_score >= 70:
 
-    elif impact == "LOW":
-        st.info(impact)
+        severity = "CRITICAL"
 
-    else:
-        st.success(impact)
+        st.error(
+            "CRITICAL RISK INCIDENT"
+        )
 
-# RECOMMENDATIONS
-if "recommendations" in st.session_state:
+    elif overall_score >= 40:
 
-    st.subheader("Recommended Actions")
-
-    for recommendation in st.session_state[
-        "recommendations"
-    ]:
-        st.success(recommendation)
-
-# KNOWLEDGE GRAPH
-if "evidence" in st.session_state:
-
-    st.subheader("Attack Knowledge Graph")
-
-    graph = AttackKnowledgeGraph()
-
-    graph.build_graph(
-    st.session_state["evidence"]
-)
-
-    fig, ax = plt.subplots(
-        figsize=(10, 7))
-
-    pos = nx.spring_layout(
-        graph.graph)
-
-    nx.draw(
-        graph.graph,
-    pos,
-    with_labels=True,
-    node_color="lightblue",
-    node_size=1200,
-    font_size=8,
-    font_weight="bold",
-    edge_color="gray",
-    arrows=True,
-    ax=ax)
-
-    st.pyplot(fig)
-
-# CHATBOT
-st.divider()
-
-st.subheader("SOC Assistant Chat")
-
-if "chat_history" not in st.session_state:
-    st.session_state["chat_history"] = []
-
-user_input = st.chat_input(
-    "Ask for 'summary' or 'why this decision?'"
-)
-
-if user_input:
-
-    if "evidence" not in st.session_state:
+        severity = "HIGH"
 
         st.warning(
-            "Run simulation first."
+            "HIGH RISK INCIDENT"
         )
 
     else:
 
-        model = RiskPredictionModel()
+        severity = "MEDIUM"
 
-        engine = SOCChatEngine(
-            st.session_state["evidence"]
+        st.info(
+            "MEDIUM RISK INCIDENT"
         )
 
-        response = engine.process_query(user_input)
+    # --------------------------------------------
+    # UEBA
+    # --------------------------------------------
 
-        st.session_state["chat_history"].append({
-            "role": "user",
-            "message": user_input
-        })
+    st.header(
+        "User & Entity Behavior Analytics"
+    )
 
-        st.session_state["chat_history"].append({
-            "role": "assistant",
-            "message": response
-        })
+    st.write(
+        f"Unique Users Observed: "
+        f"{evidence['Users']}"
+    )
 
-# ------------------------------------------------
-# CHAT HISTORY
-# ------------------------------------------------
-for chat in st.session_state["chat_history"]:
+    st.write(
+        f"Affected Hosts: "
+        f"{evidence['AffectedHosts']}"
+    )
 
-    with st.chat_message(chat["role"]):
+    st.write(
+        f"After-Hours Logins: "
+        f"{evidence['AfterHoursLogins']}"
+    )
 
-        st.write(chat["message"])
+    # --------------------------------------------
+    # ENDPOINT RISK
+    # --------------------------------------------
+
+    st.header("Endpoint Risk Activity")
+
+    for host in evidence["HighRiskHosts"]:
+
+        st.warning(
+            f"{host} observed in "
+            f"suspicious activity"
+        )
+
+    # --------------------------------------------
+    # TIMELINE
+    # --------------------------------------------
+
+    st.header("Attack Timeline Reconstruction")
+
+    for step in evidence["AttackTimeline"]:
+
+        st.markdown(f"- {step}")
+
+    # --------------------------------------------
+    # CYBER KILL CHAIN
+    # --------------------------------------------
+
+    st.header(
+        "Cyber Kill Chain Analysis"
+    )
+
+    kill_chain = []
+
+    if evidence["AfterHoursLogins"] > 5:
+
+        kill_chain.append("Reconnaissance")
+
+    if evidence["SuspiciousLogons"] > 10:
+
+        kill_chain.append("Exploitation")
+
+    if evidence["CredentialAbuse"]:
+
+        kill_chain.append( "Installation")
+
+    if evidence["LateralMovement"] > 10:
+
+        kill_chain.append("Command & Control")
+
+    if evidence["AffectedHosts"] > 10:
+
+        kill_chain.append("Exfiltration")
+
+    if not kill_chain:
+
+        kill_chain.append(
+            "No advanced attack "
+            "stages detected"
+        )
+
+    for phase in kill_chain:
+
+        st.success(phase)
+
+    # --------------------------------------------
+    # DYNAMIC RECOMMENDATIONS
+    # --------------------------------------------
+
+    st.header("Recommended Response Actions")
+
+    actions = []
+
+    if evidence["CredentialAbuse"]:
+
+        actions.append(
+            "Force password reset "
+            "for affected users"
+        )
+
+        actions.append(
+            "Review privileged "
+            "account activity"
+        )
+
+    if evidence["LateralMovement"] > 10:
+
+        actions.append(
+            "Isolate suspicious "
+            "endpoints from network"
+        )
+
+        actions.append(
+            "Investigate lateral "
+            "movement paths"
+        )
+
+    if evidence["AfterHoursLogins"] > 5:
+
+        actions.append(
+            "Review after-hours "
+            "authentication activity"
+        )
+
+    if evidence["SuspiciousLogons"] > 20:
+
+        actions.append(
+            "Enable enhanced "
+            "authentication monitoring"
+        )
+
+    if evidence["AffectedHosts"] > 10:
+
+        actions.append(
+            "Perform endpoint "
+            "forensic investigation"
+        )
+
+    if not actions:
+
+        actions.append(
+            "Continue monitoring "
+            "security telemetry"
+        )
+
+    for action in actions:
+
+        st.success(action)
+
+    # --------------------------------------------
+    # DYNAMIC KNOWLEDGE GRAPH
+    # --------------------------------------------
+
+    st.header(
+        "Attack Correlation "
+        "Knowledge Graph"
+    )
+
+    graph_builder = AttackGraph(
+        st.session_state.parser_logs
+    )
+
+    graph_plot = (
+        graph_builder.draw_graph()
+    )
+
+    st.pyplot(graph_plot)
+
+    # --------------------------------------------
+    # INCIDENT REPORT
+    # --------------------------------------------
+
+    st.header(
+        "Automated Incident Report"
+    )
+
+    report = f"""
+AI-Assisted SOC Incident Report
+Generated: {datetime.now()}
+
+====================================
+
+INCIDENT SUMMARY
+----------------
+Suspicious Logons:
+{evidence['SuspiciousLogons']}
+
+After Hours Activity:
+{evidence['AfterHoursLogins']}
+
+Affected Hosts:
+{evidence['AffectedHosts']}
+
+Users Observed:
+{evidence['Users']}
+
+Credential Abuse:
+{evidence['CredentialAbuse']}
+
+Lateral Movement:
+{evidence['LateralMovement']}
+
+====================================
+
+THREAT SEVERITY
+----------------
+Overall Severity:
+{severity}
+
+====================================
+
+RECOMMENDED ACTIONS
+----------------
+{chr(10).join([f"- {a}" for a in actions])}
+
+====================================
+
+AI SOC ANALYST NOTES
+----------------
+This report was generated automatically
+using the CMU CERT Insider Threat Dataset
+and AI-assisted SOC analysis engine.
+"""
+
+    st.download_button(
+
+        label="Download Incident Report",
+
+        data=report,
+
+        file_name="incident_report.txt",
+
+        mime="text/plain"
+    )
+
+    # --------------------------------------------
+    # AI ANALYST
+    # --------------------------------------------
+
+    st.header("SOC AI Analyst")
+
+    for message in (
+        st.session_state.messages
+    ):
+
+        with st.chat_message(
+            message["role"]
+        ):
+
+            st.write(
+                message["content"]
+            )
+
+    user_query = st.chat_input(
+        "Ask SOC Assistant"
+    )
+
+    if user_query:
+
+        st.session_state.messages.append(
+            {
+                "role": "user",
+                "content": user_query
+            }
+        )
+
+        with st.chat_message("user"):
+
+            st.write(user_query)
+
+        engine = SOCChatEngine(
+            evidence
+        )
+
+        with st.spinner(
+            "Analyzing incident..."
+        ):
+
+            response = (
+                engine.process_query(
+                    user_query
+                )
+            )
+
+        st.session_state.messages.append(
+            {
+                "role": "assistant",
+                "content": response
+            }
+        )
+
+        with st.chat_message(
+            "assistant"
+        ):
+
+            st.write(response)

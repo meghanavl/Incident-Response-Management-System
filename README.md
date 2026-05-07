@@ -1,184 +1,52 @@
-#  SOC Incident Response Decision Support System
+# SOC Incident Response Decision Support System
 
-##  Overview
-
-This project is an AI-powered SOC (Security Operations Center) assistant that helps analysts:
-
-* Detect attack indicators from logs
-* Predict attack probabilities using Bayesian Networks
-* Recommend mitigation actions based on past incidents
-* Provide explanations and chatbot-based interaction
+An AI-assisted SOC (Security Operations Center) platform for analyzing simulated cybersecurity incidents using Bayesian inference, evidence extraction, knowledge graphs, and a local LLM-powered chatbot.
 
 ---
 
-##  How to Run
+# Features
 
-### 1. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Run the application
-
-```bash
-streamlit run soc_chatbot.py
-```
-
-### 3. Open in browser
-
-```
-http://localhost:8501
-```
+- Security log simulation
+- Evidence extraction from logs
+- Bayesian attack probability prediction
+- Impact severity analysis
+- Historical incident learning
+- Attack knowledge graph visualization
+- AI-powered SOC chatbot using Ollama + Phi-3
+- Streamlit interactive dashboard
 
 ---
 
-## Core Features
+# Attack Scenarios
 
-### 1. Log Simulation & Evidence Extraction
+The system can simulate:
 
-* File: `evidence_collection/log_parser.py`
-* Simulates streaming logs (login failures, emails, PowerShell, etc.)
-* Detects patterns:
-
-  * FailedLogins
-  * SuspiciousEmail
-  * PowerShellExec
-  * BruteForcePattern
-  * MalwareSequence
-* Outputs structured **evidence dictionary**
+- Brute Force Attacks
+- Phishing Attacks
+- Malware Execution
+- Data Exfiltration
+- Mixed Multi-Stage Attacks
 
 ---
 
-###  2. Bayesian Risk Model
+# Technologies Used
 
-* File: `bayesian_model/risk_model.py`
-* Uses **pgmpy Bayesian Network**
-* Predicts:
-
-  * BruteForceAttack
-  * PhishingAttack
-  * MalwareExecution
-
-#### How it works:
-
-* Reads historical data from `data/incidents.csv`
-* Learns probabilities using Maximum Likelihood Estimation
-* Updates dataset with new simulated incidents → **continuous learning**
+- Python
+- Streamlit
+- pgmpy
+- NetworkX
+- Matplotlib
+- Ollama
+- Phi-3 Mini LLM
 
 ---
 
-### 3. Knowledge Graph
-
-* File: `knowledge_graph/attack_graph.py`
-* Visualizes relationships:
-
-  * Indicators → Attacks → Actions
-* Built using `networkx`
-* Displayed via `matplotlib` in Streamlit
-
----
-
-### 4. Streamlit Dashboard
-
-* File: `soc_chatbot.py`
-* Main UI:
-
-  * Simulate incident
-  * Show logs
-  * Show extracted evidence
-  * Show attack probabilities
-  * Show impact level
-  * Show recommendations
-  * Show knowledge graph
-
-#### Important:
-
-Uses `st.session_state` to:
-
-* Persist logs
-* Persist predictions
-* Prevent UI reset during chatbot interaction
-
----
-
-### 5. Chatbot Engine
-
-* File: `chatbot/soc_chat_engine.py`
-* Handles:
-
-  * User queries
-  * Decision explanation
-  * Attack probability responses
-
-#### Current Logic:
-
-* Uses Bayesian model outputs (NOT hardcoded rules)
-* Supports queries like:
-
-  * "summary"
-  * "phishing"
-  * "impact"
-  * "why"
-
----
-
-### 6. Historical Learning (IMPORTANT)
-
-* File: `data/incidents.csv`
-* Stores:
-
-  * Evidence features
-  * Attack labels
-
-Each simulation:
-→ gets saved
-→ model retrains on next run
-→ system improves over time
-
----
-
-## Data Flow
+# Project Structure
 
 ```text
-Logs → Parser → Evidence → Bayesian Model → Predictions
-                                      ↓
-                               Stored in CSV
-                                      ↓
-                           Used for future learning
-```
-
----
-
-## Known Limitations (Check before submission!!!)
-
-* Chatbot still partially keyword-based (not fully semantic yet)
-* Bayesian model assumes simple relationships (can be expanded)
-* No real-time external log ingestion (currently simulated)
-* Recommendations are rule-based (not learned yet)
-
----
-
-## What You Can Still Improve (HIGH VALUE)
-
-### Must-have (if time permits)
-
-* [ ] Use similarity-based recommendations from past incidents (and not saying "No past incidents" as recommendation)
-* [ ] Improve chatbot using embeddings
-
-### Advanced Improvements
-
-* [ ] Replace CSV with database (SQLite/Postgres)
-* [ ] Add real log ingestion (syslog/API)
-* [ ] Use time-series / sequence modeling
-* [ ] Add alert prioritization
-
----
-
-## Project Structure
-
-```
-Incident-Response-Management-System/
+ISRAA/
+│
+├── app.py
 │
 ├── bayesian_model/
 │   └── risk_model.py
@@ -195,40 +63,122 @@ Incident-Response-Management-System/
 ├── data/
 │   └── incidents.csv
 │
-├── soc_chatbot.py
 ├── requirements.txt
 └── README.md
 ```
 
 ---
 
-## Example Workflow
+# Installation
 
-1. Select scenario (phishing / malware / brute force)
-2. Click **Simulate Security Incident**
-3. System:
-   * Streams logs
-   * Extracts evidence
-   * Predicts attack probabilities
-   * Shows impact + recommendations
-4. Ask chatbot:
-   * “What is the attack?”
-   * “Why is this happening?”
-   * “What is the impact?”
+## 1. Clone Repository
+
+```bash
+git clone <your-repository-url>
+cd ISRAA
+```
 
 ---
 
-## Key Learning Outcomes
+## 2. Install Python Dependencies
 
-* Bayesian Networks for probabilistic reasoning
-* Feature extraction from logs
-* Streamlit UI with session persistence
-* Basic ML lifecycle (data → model → retrain)
-* Knowledge graph visualization
-* Building an AI assistant pipeline
+```bash
+python -m pip install -r requirements.txt
+```
 
 ---
 
-## Author
+## 3. Install Ollama
+
+Download:
+https://ollama.com/download
+
+---
+
+## 4. Download LLM Model
+
+```bash
+ollama run phi3:mini
+```
+
+This downloads the local language model used by the SOC chatbot.
+
+---
+
+# Run Application
+
+Start Streamlit:
+
+```bash
+streamlit run app.py
+```
+
+---
+
+# AI Chatbot
+
+The chatbot can:
+
+- Summarize incidents
+- Explain attack severity
+- Identify suspicious indicators
+- Recommend mitigation steps
+- Explain attack reasoning
+
+Example prompts:
+
+```text
+summarize this incident
+```
+
+```text
+why is this attack critical?
+```
+
+```text
+what indicators suggest malware?
+```
+
+```text
+recommended mitigation actions
+```
+
+---
+
+# Bayesian Inference
+
+The project uses Bayesian Networks to predict:
+
+- Brute Force Attack Probability
+- Phishing Attack Probability
+- Malware Execution Probability
+- Data Exfiltration Probability
+
+---
+
+# Knowledge Graph
+
+The system visualizes relationships between:
+
+- Attack indicators
+- Attack types
+- Mitigation actions
+
+using a cybersecurity knowledge graph.
+
+---
+
+# Future Improvements
+
+- Real-world SOC datasets
+- SIEM integration
+- Real-time log ingestion
+- Multi-user analyst dashboard
+- Threat intelligence integration
+- Advanced LLM reasoning
+
+---
+
+# Author
 
 Meghana V L
