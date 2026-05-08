@@ -1,3 +1,4 @@
+#chatbot/soc_chat_engine.py
 import ollama
 
 
@@ -30,13 +31,28 @@ Your responsibilities:
 - Map behavior to MITRE ATT&CK tactics
 - Recommend response actions
 
-Guidelines:
+RESPONSE FORMAT RULES:
 
-- Be concise but professional
-- Respond like a real SOC analyst
-- Avoid generic chatbot replies
+- Maximum 4 bullet points
+- Maximum 2 short sentences per bullet
+- NO paragraphs
+- NO generic AI explanations
+- Prioritize:
+    1. Threat summary
+    2. Root cause
+    3. Severity
+    4. Recommended action
+- Sound like a SOC analyst writing an escalation note
+- Keep responses operational and concise
 - Base conclusions ONLY on evidence
 - Clearly explain your reasoning
+
+EXAMPLE RESPONSE STYLE:
+
+- Multiple after-hours logins detected.
+- Lateral movement observed across enterprise endpoints.
+- Credential abuse behavior likely based on repeated authentication anomalies.
+- Recommend isolating affected hosts and resetting compromised accounts.
 """
 
     def process_query(self, user_query):
