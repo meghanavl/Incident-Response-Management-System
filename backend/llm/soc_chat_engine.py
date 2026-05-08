@@ -56,6 +56,27 @@ EXAMPLE RESPONSE STYLE:
 """
 
     def process_query(self, user_query):
+        # -----------------------------------
+        # SIMPLE CONVERSATIONAL HANDLING
+        # -----------------------------------
+
+        simple_greetings = [
+
+            "hi",
+            "hello",
+            "hey",
+            "good morning",
+            "good evening"
+        ]
+
+        if user_query.lower().strip() in simple_greetings:
+
+            return (
+                "Hello. I'm your SOC AI analyst assistant. "
+                "Ask me about the current incident, "
+                "threat activity, ATT&CK techniques, "
+                "or response recommendations."
+            )
 
         response = ollama.chat(
 
