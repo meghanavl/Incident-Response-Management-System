@@ -1,31 +1,177 @@
-# SOC Incident Response Decision Support System
+# AI-Assisted SOC Incident Response Platform
 
-An AI-assisted SOC (Security Operations Center) platform for analyzing simulated cybersecurity incidents using Bayesian inference, evidence extraction, knowledge graphs, and a local LLM-powered chatbot.
+An intelligent Security Operations Center (SOC) simulation platform built using:
+
+- Streamlit
+- Ollama LLM
+- CMU CERT Insider Threat Dataset
+- Dynamic Threat Analytics
+- Knowledge Graph Visualization
+
+This project simulates real-world SOC incident investigation workflows using enterprise security telemetry data.
 
 ---
 
 # Features
 
-- Security log simulation
-- Evidence extraction from logs
-- Bayesian attack probability prediction
-- Impact severity analysis
-- Historical incident learning
-- Attack knowledge graph visualization
-- AI-powered SOC chatbot using Ollama + Phi-3
-- Streamlit interactive dashboard
+## Real CERT Insider Threat Dataset
+
+Uses the:
+
+### CMU CERT Insider Threat Dataset (r1)
+
+The platform processes enterprise telemetry logs including:
+
+- User logons/logoffs
+- Endpoint activity
+- Host access behavior
+- Authentication events
+- Insider threat indicators
+
+Dataset source:
+https://kilthub.cmu.edu/articles/dataset/Insider_Threat_Test_Dataset/12841247
 
 ---
 
-# Attack Scenarios
+# SOC Features
 
-The system can simulate:
+## Live SOC Threat Feed
 
-- Brute Force Attacks
-- Phishing Attacks
-- Malware Execution
-- Data Exfiltration
-- Mixed Multi-Stage Attacks
+Streams real log activity from the CERT dataset in SOC-style format.
+
+Example:
+
+```text
+11/10/2010 13:53:46 | USER=DTAA/PKH0542 | HOST=PC-2052 | EVENT=Logon
+```
+
+---
+
+## Dynamic Evidence Extraction
+
+Automatically extracts:
+
+- Suspicious logons
+- After-hours authentication
+- Credential abuse indicators
+- Lateral movement indicators
+- High-risk hosts
+- User activity patterns
+
+---
+
+## Threat Confidence Scores
+
+Calculates dynamic threat probabilities for:
+
+- Abnormal Authentication
+- Credential Abuse
+- Lateral Movement
+
+Displayed using interactive Streamlit progress bars.
+
+---
+
+## Incident Severity Detection
+
+Automatically classifies incidents into:
+
+- MEDIUM
+- HIGH
+- CRITICAL
+
+based on detected threat indicators.
+
+---
+
+## User & Entity Behavior Analytics (UEBA)
+
+Tracks:
+
+- Unique users
+- Endpoint activity
+- Suspicious hosts
+- Authentication anomalies
+
+---
+
+## Endpoint Risk Activity
+
+Highlights high-risk systems dynamically identified from suspicious activity patterns.
+
+---
+
+## Attack Timeline Reconstruction
+
+Builds an attack sequence timeline from detected events such as:
+
+- After-hours logins
+- Credential abuse attempts
+- Lateral movement indicators
+
+---
+
+## Cyber Kill Chain Analysis
+
+Maps detected attack behavior to Cyber Kill Chain phases:
+
+- Reconnaissance
+- Weaponization
+- Delivery
+- Exploitation
+- Installation
+- Command & Control
+- Exfiltration
+
+---
+
+## Dynamic Attack Correlation Knowledge Graph
+
+Generates a dynamic graph showing relationships between:
+
+- Users
+- Hosts
+- Suspicious endpoints
+- Authentication activity
+- Attack movement paths
+
+Built using:
+
+- NetworkX
+- Matplotlib
+
+---
+
+## AI SOC Analyst (LLM)
+
+Integrated with:
+
+## Ollama
+
+Using local LLMs such as:
+
+- phi3:mini
+- tinyllama
+
+The assistant can:
+
+- Explain incidents
+- Summarize attacks
+- Recommend mitigations
+- Analyze suspicious activity
+- Answer SOC investigation questions
+
+---
+
+## Automated Incident Report
+
+Generates downloadable SOC incident reports containing:
+
+- Threat evidence
+- Severity assessment
+- Timeline reconstruction
+- Risk indicators
+- Recommended response actions
 
 ---
 
@@ -33,49 +179,47 @@ The system can simulate:
 
 - Python
 - Streamlit
-- pgmpy
+- Pandas
 - NetworkX
 - Matplotlib
 - Ollama
-- Phi-3 Mini LLM
+- CMU CERT Dataset
 
 ---
 
 # Project Structure
 
 ```text
-ISRAA/
+project/
 │
 ├── app.py
-│
-├── bayesian_model/
-│   └── risk_model.py
-│
-├── evidence_collection/
-│   └── log_parser.py
-│
-├── knowledge_graph/
-│   └── attack_graph.py
+├── requirements.txt
 │
 ├── chatbot/
 │   └── soc_chat_engine.py
 │
-├── data/
-│   └── incidents.csv
+├── evidence_collection/
+│   └── log_parser.py
 │
-├── requirements.txt
-└── README.md
+├── data/
+│   └── logon.csv
+│
+├── knowledge_graph/
+│   └── attack_graph.py
+│
+└── Bayesian_model/
+    └── risk_model.py
 ```
 
 ---
 
 # Installation
 
-## 1. Clone Repository
+## 1. Clone Project
 
 ```bash
-git clone <your-repository-url>
-cd ISRAA
+git clone <repo-url>
+cd project
 ```
 
 ---
@@ -83,7 +227,7 @@ cd ISRAA
 ## 2. Install Python Dependencies
 
 ```bash
-python -m pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
 ---
@@ -93,21 +237,47 @@ python -m pip install -r requirements.txt
 Download:
 https://ollama.com/download
 
+Verify installation:
+
+```bash
+ollama --version
+```
+
 ---
 
-## 4. Download LLM Model
+## 4. Pull LLM Model
+
+Example:
+
+```bash
+ollama pull phi3:mini
+```
+
+or
+
+```bash
+ollama pull tinyllama
+```
+
+---
+
+# Running the Project
+
+## Step 1 — Start Ollama
+
+Open terminal:
 
 ```bash
 ollama run phi3:mini
 ```
 
-This downloads the local language model used by the SOC chatbot.
+Keep this terminal running.
 
 ---
 
-# Run Application
+## Step 2 — Run Streamlit App
 
-Start Streamlit:
+Open another terminal:
 
 ```bash
 streamlit run app.py
@@ -115,70 +285,66 @@ streamlit run app.py
 
 ---
 
-# AI Chatbot
+# Dataset Setup
 
-The chatbot can:
+Download:
 
-- Summarize incidents
-- Explain attack severity
-- Identify suspicious indicators
-- Recommend mitigation steps
-- Explain attack reasoning
+## CERT r1 dataset
 
-Example prompts:
+Extract:
 
 ```text
-summarize this incident
+r1.tar.bz2
 ```
 
-```text
-why is this attack critical?
-```
+Place:
 
 ```text
-what indicators suggest malware?
+logon.csv
 ```
 
+inside:
+
 ```text
-recommended mitigation actions
+data/logon.csv
 ```
 
 ---
 
-# Bayesian Inference
+# Current Dynamic Features
 
-The project uses Bayesian Networks to predict:
+The following are dynamically generated from live sampled dataset logs:
 
-- Brute Force Attack Probability
-- Phishing Attack Probability
-- Malware Execution Probability
-- Data Exfiltration Probability
+- Threat evidence
+- Attack timeline
+- Threat attribution
+- UEBA metrics
+- Severity scoring
+- Knowledge graph
+- High-risk hosts
+- Recommended mitigations
 
 ---
 
-# Knowledge Graph
+# Hardcoded Components
 
-The system visualizes relationships between:
+Minimal static logic still exists for:
 
-- Attack indicators
-- Attack types
-- Mitigation actions
+- Severity thresholds
+- Cyber Kill Chain phase labels
+- Some mitigation templates
 
-using a cybersecurity knowledge graph.
+Most analytics are dynamically derived from dataset behavior.
 
 ---
 
 # Future Improvements
 
-- Real-world SOC datasets
-- SIEM integration
-- Real-time log ingestion
-- Multi-user analyst dashboard
-- Threat intelligence integration
-- Advanced LLM reasoning
-
----
-
-# Author
-
-Meghana V L
+- Real SIEM integration
+- Neo4j graph database
+- MITRE ATT&CK technique mapping
+- Real-time packet analysis
+- Multi-agent SOC orchestration
+- Threat intelligence enrichment
+- PDF incident export
+- Real-time alert streaming
