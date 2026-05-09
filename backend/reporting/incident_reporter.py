@@ -1,76 +1,218 @@
-from datetime import datetime
-
-
 class IncidentReporter:
 
-    def generate_report(self, results):
+    def generate_report(
 
-        evidence = results["evidence"]
+        self,
+
+        results
+    ):
+
+        profile = results[
+            "dataset_profile"
+        ]
+
+        evidence = results[
+            "evidence"
+        ]
+
+        severity = results[
+            "severity"
+        ]
+
+        score = results[
+            "scores"
+        ]
+
+        bayesian = results[
+            "bayesian_analysis"
+        ]
+
+        timeline = results[
+            "timeline"
+        ]
+
+        recommendations = results[
+            "recommendations"
+        ]
+
+        attack_mapping = results[
+            "attack_mapping"
+        ]
+
+        kill_chain = results[
+            "kill_chain"
+        ]
+
+        # =================================================
+        # REPORT
+        # =================================================
 
         report = f"""
-AI-Assisted SOC Incident Response Report
-Generated: {datetime.now()}
+====================================================
+AI-ASSISTED SOC INCIDENT RESPONSE REPORT
+====================================================
 
-==================================================
+DATASET INFORMATION
+----------------------------------------------------
+
+Dataset:
+{profile["name"]}
+
+Security Domain:
+{profile["domain"]}
+
+Detection Focus:
+{profile["detection_focus"]}
+
+Data Type:
+{profile["data_type"]}
+
+Source:
+{profile["source"]}
+
+====================================================
 INCIDENT SEVERITY
-==================================================
+====================================================
 
 Severity Level:
-{results["severity"]}
+{severity}
 
-==================================================
-THREAT SUMMARY
-==================================================
+Threat Score:
+{score}
 
-Suspicious Logons:
-{evidence["SuspiciousLogons"]}
+====================================================
+BAYESIAN THREAT ANALYSIS
+====================================================
 
-After-Hours Activity:
-{evidence["AfterHoursLogins"]}
+Threat Probability:
+{bayesian["probability"]}%
 
-Credential Abuse Detected:
-{evidence["CredentialAbuse"]}
+Threat Confidence:
+{bayesian["label"]}
 
-Lateral Movement Events:
-{evidence["LateralMovement"]}
+Reasoning:
+"""
 
-Affected Users:
-{evidence["Users"]}
+        for reason in bayesian["reasoning"]:
 
-Affected Hosts:
-{evidence["AffectedHosts"]}
+            report += f"\n- {reason}"
 
-==================================================
+        # =================================================
+        # SECURITY EVIDENCE
+        # =================================================
+
+        report += """
+
+====================================================
+EXTRACTED SECURITY EVIDENCE
+====================================================
+"""
+
+        for key, value in evidence.items():
+
+            report += f"\n{key}: {value}"
+
+        # =================================================
+        # TIMELINE
+        # =================================================
+
+        report += """
+
+====================================================
 ATTACK TIMELINE
-==================================================
+====================================================
 """
 
-        for step in results["timeline"]:
+        for step in timeline:
 
-            report += f"- {step}\n"
+            report += f"\n- {step}"
+
+        # =================================================
+        # MITRE ATT&CK
+        # =================================================
 
         report += """
-==================================================
-MITRE ATT&CK MAPPING
-==================================================
+
+====================================================
+MITRE ATT&CK TECHNIQUES
+====================================================
 """
 
-        for attack in results["attack_mapping"]:
+        for attack in attack_mapping:
 
-            report += (
-                f"{attack['technique']} | "
-                f"{attack['name']} | "
-                f"{attack['tactic']}\n"
-            )
+            report += f"""
+
+Technique:
+{attack["technique"]}
+
+Name:
+{attack["name"]}
+
+Tactic:
+{attack["tactic"]}
+"""
+
+        # =================================================
+        # KILL CHAIN
+        # =================================================
 
         report += """
-==================================================
-RECOMMENDED ACTIONS
-==================================================
+
+====================================================
+CYBER KILL CHAIN ANALYSIS
+====================================================
 """
 
-        for action in results["recommendations"]:
+        for phase in kill_chain:
 
-            report += f"- {action}\n"
+            report += f"\n- {phase}"
+
+        # =================================================
+        # RECOMMENDATIONS
+        # =================================================
+
+        report += """
+
+====================================================
+RECOMMENDED RESPONSE ACTIONS
+====================================================
+"""
+
+        for action in recommendations:
+
+            report += f"\n- {action}"
+
+        # =================================================
+        # FINAL SUMMARY
+        # =================================================
+
+        report += f"""
+
+====================================================
+SOC ANALYST SUMMARY
+====================================================
+
+This incident was analyzed under the
+{profile["domain"]} domain.
+
+The platform identified telemetry patterns
+consistent with suspicious cyber activity.
+
+Threat severity was classified as:
+{severity}
+
+Bayesian analysis estimated a threat
+probability of:
+{bayesian["probability"]}%
+
+Relevant MITRE ATT&CK techniques and
+Cyber Kill Chain phases were identified
+to support incident investigation and
+response prioritization.
+
+====================================================
+END OF REPORT
+====================================================
+"""
 
         return report

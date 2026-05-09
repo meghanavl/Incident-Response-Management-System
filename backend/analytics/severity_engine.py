@@ -1,94 +1,200 @@
 class SeverityEngine:
 
-    def calculate(self, evidence):
+    def calculate(
 
-        # -----------------------------------
-        # WEIGHTED RISK FACTORS
-        # -----------------------------------
+        self,
 
-        suspicious_score = min(
+        evidence,
 
-            evidence["SuspiciousLogons"] * 0.5,
+        bayesian_analysis
+    ):
 
-            25
+        score = 0
+
+        severity_reasons = []
+
+        # =================================================
+        # CMU CERT
+        # =================================================
+
+        suspicious_logons = evidence.get(
+            "SuspiciousLogons",
+            0
         )
 
-        after_hours_score = min(
+        if suspicious_logons > 10:
 
-            evidence["AfterHoursLogins"] * 2,
+            score += 25
 
-            20
+            severity_reasons.append(
+                "High authentication anomaly volume"
+            )
+
+        after_hours = evidence.get(
+            "AfterHoursLogins",
+            0
         )
 
-        lateral_score = min(
+        if after_hours > 5:
 
-            evidence["LateralMovement"] * 4,
+            score += 20
 
-            35
+            severity_reasons.append(
+                "After-hours access behavior"
+            )
+
+        lateral = evidence.get(
+            "LateralMovement",
+            0
         )
 
-        credential_score = (
+        if lateral > 5:
 
-            30
-            if evidence["CredentialAbuse"]
-            else 0
+            score += 35
+
+            severity_reasons.append(
+                "Potential lateral movement detected"
+            )
+
+        if evidence.get(
+            "CredentialAbuse",
+            0
+        ):
+
+            score += 40
+
+            severity_reasons.append(
+                "Credential abuse indicators identified"
+            )
+
+        # =================================================
+        # CIC IDS2017
+        # =================================================
+
+        dos = evidence.get(
+            "PotentialDoS",
+            0
         )
 
-        # -----------------------------------
-        # TOTAL SCORE
-        # -----------------------------------
+        if dos > 10:
 
-        overall_score = (
+            score += 40
 
-            suspicious_score +
+            severity_reasons.append(
+                "Potential denial-of-service activity"
+            )
 
-            after_hours_score +
+        if evidence.get(
+            "BotnetActivity",
+            0
+        ):
 
-            lateral_score +
+            score += 35
 
-            credential_score
+            severity_reasons.append(
+                "Botnet communication behavior"
+            )
+
+        if evidence.get(
+            "InfiltrationAttempts",
+            0
+        ):
+
+            score += 35
+
+            severity_reasons.append(
+                "Network infiltration indicators"
+            )
+
+        suspicious_flows = evidence.get(
+            "SuspiciousFlows",
+            0
         )
 
-        # -----------------------------------
-        # SEVERITY LEVELS
-        # -----------------------------------
+        if suspicious_flows > 20:
 
-        if overall_score >= 75:
+            score += 20
 
-            severity = "CRITICAL"
+            severity_reasons.append(
+                "Large volume suspicious traffic flows"
+            )
 
-        elif overall_score >= 50:
+        # =================================================
+        # PHISHING
+        # =================================================
 
-            severity = "HIGH"
+        malicious_urls = evidence.get(
+            "MaliciousURLs",
+            0
+        )
 
-        elif overall_score >= 25:
+        if malicious_urls > 20:
+
+            score += 35
+
+            severity_reasons.append(
+                "Large phishing campaign volume"
+            )
+
+        if evidence.get(
+            "CredentialHarvesting",
+            0
+        ):
+
+            score += 40
+
+            severity_reasons.append(
+                "Credential harvesting behavior"
+            )
+
+        suspicious_domains = evidence.get(
+            "SuspiciousDomains",
+            0
+        )
+
+        if suspicious_domains > 10:
+
+            score += 25
+
+            severity_reasons.append(
+                "Suspicious spoofed domains"
+            )
+
+        # =================================================
+        # BAYESIAN BOOST
+        # =================================================
+
+        probability = bayesian_analysis[
+            "probability"
+        ]
+
+        score += int(probability * 0.5)
+
+        # =================================================
+        # SEVERITY LABELS
+        # =================================================
+
+        if score < 40:
+
+            severity = "LOW"
+
+        elif score < 80:
 
             severity = "MEDIUM"
 
+        elif score < 140:
+
+            severity = "HIGH"
+
         else:
 
-            severity = "LOW"
+            severity = "CRITICAL"
 
         return {
 
             "severity": severity,
 
-            "scores": {
+            "scores": score,
 
-                "Abnormal Authentication":
-
-                round(suspicious_score, 1),
-
-                "After-Hours Activity":
-
-                round(after_hours_score, 1),
-
-                "Lateral Movement":
-
-                round(lateral_score, 1),
-
-                "Credential Abuse":
-
-                credential_score
-            }
+            "reasons": severity_reasons
         }

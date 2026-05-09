@@ -1,29 +1,31 @@
 import pandas as pd
-import random
-
 
 class LogIngestor:
 
-    def __init__(self, path="data/logon.csv"):
+    def __init__(self, path):
 
         self.logs = pd.read_csv(path)
 
-        self.logs = self.logs.sort_values(
-            by="date"
-        )
+        # -----------------------------------
+        # SORT ONLY IF DATE EXISTS
+        # -----------------------------------
+
+        if "date" in self.logs.columns:
+
+            self.logs = self.logs.sort_values(
+                by="date"
+            )
 
     def fetch_logs(self):
 
-        # -----------------------------------
-        # RANDOM INCIDENT WINDOW
-        # -----------------------------------
+        sample_size = min(
+            200,
+            len(self.logs)
+        )
 
-        max_start = len(self.logs) - 200
+        return self.logs.sample(
 
-        start_index = random.randint(0, max_start)
+            sample_size,
 
-        sampled_logs = self.logs.iloc[
-            start_index:start_index + 200
-        ]
-
-        return sampled_logs
+            replace=False
+        )

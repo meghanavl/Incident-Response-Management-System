@@ -1,29 +1,123 @@
 class KillChainMapper:
 
-    def map_phases(self, evidence):
+    def map_phases(
+
+        self,
+
+        evidence,
+
+        dataset_name
+    ):
 
         phases = []
 
-        if evidence["AfterHoursLogins"] > 5:
+        # =================================================
+        # CMU CERT
+        # =================================================
 
-            phases.append("Reconnaissance")
+        if dataset_name == "CMU_CERT":
 
-        if evidence["SuspiciousLogons"] > 10:
+            if evidence.get(
+                "SuspiciousLogons",
+                0
+            ) > 10:
 
-            phases.append("Exploitation")
+                phases.append(
+                    "Reconnaissance"
+                )
 
-        if evidence["CredentialAbuse"]:
+            if evidence.get(
+                "CredentialAbuse",
+                0
+            ):
 
-            phases.append("Installation")
+                phases.append(
+                    "Credential Access"
+                )
 
-        if evidence["LateralMovement"] > 10:
+            if evidence.get(
+                "LateralMovement",
+                0
+            ) > 0:
 
-            phases.append("Command & Control")
+                phases.append(
+                    "Lateral Movement"
+                )
+
+        # =================================================
+        # CIC IDS2017
+        # =================================================
+
+        elif dataset_name == "CIC_IDS2017":
+
+            if evidence.get(
+                "PotentialDoS",
+                0
+            ) > 0:
+
+                phases.append(
+                    "Impact"
+                )
+
+            if evidence.get(
+                "BotnetActivity",
+                0
+            ):
+
+                phases.append(
+                    "Command & Control"
+                )
+
+            if evidence.get(
+                "InfiltrationAttempts",
+                0
+            ):
+
+                phases.append(
+                    "Exploitation"
+                )
+
+        # =================================================
+        # PHISHING
+        # =================================================
+
+        elif dataset_name == "PHISHING":
+
+            if evidence.get(
+                "MaliciousURLs",
+                0
+            ) > 5:
+
+                phases.append(
+                    "Delivery"
+                )
+
+            if evidence.get(
+                "CredentialHarvesting",
+                0
+            ):
+
+                phases.append(
+                    "Credential Access"
+                )
+
+            if evidence.get(
+                "SuspiciousDomains",
+                0
+            ) > 10:
+
+                phases.append(
+                    "Weaponization"
+                )
+
+        # =================================================
+        # FALLBACK
+        # =================================================
 
         if not phases:
 
             phases.append(
-                "No advanced attack stages detected"
+                "Monitoring"
             )
 
         return phases

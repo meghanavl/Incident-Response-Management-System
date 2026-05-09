@@ -1,357 +1,317 @@
+import random
+
 import networkx as nx
+
 import matplotlib.pyplot as plt
 
 
 class GraphEngine:
 
-    def __init__(self, events, evidence):
+    def __init__(
+
+        self,
+
+        events,
+
+        evidence
+    ):
 
         self.events = events
 
         self.evidence = evidence
 
+    # =================================================
+    # BUILD GRAPH
+    # =================================================
+
     def build_graph(self):
 
         graph = nx.DiGraph()
 
-        # -----------------------------------
-        # IDENTIFY SUSPICIOUS USERS
-        # -----------------------------------
+        if not self.events:
 
-        user_activity = {}
+            return graph
 
-        for event in self.events:
+        dataset_type = self.events[0].dataset_type
 
-            user_activity[event.user] = (
-                user_activity.get(event.user, 0) + 1
-            )
+        # =================================================
+        # CMU CERT
+        # USER ↔ HOST RELATIONSHIPS
+        # =================================================
 
-        high_risk_users = [
+        if dataset_type == "CMU_CERT":
 
-            user
+            for event in self.events[:40]:
 
-            for user, count
+                user_node = (
+                    f"USER:{event.user}"
+                )
 
-            in user_activity.items()
-
-            if count > 2
-        ]
-
-        suspicious_hosts = set(
-            self.evidence["HighRiskHosts"]
-        )
-
-        # -----------------------------------
-        # FILTER IMPORTANT EVENTS ONLY
-        # -----------------------------------
-
-        filtered_events = [
-
-            event
-
-            for event in self.events
-
-            if (
-
-                event.user in high_risk_users
-
-                or
-
-                event.host in suspicious_hosts
-            )
-        ]
-
-        # LIMIT GRAPH SIZE
-        filtered_events = filtered_events[:30]
-
-        users_seen = {}
-
-        previous_event = None
-
-        # -----------------------------------
-        # BUILD RELATIONSHIPS
-        # -----------------------------------
-
-        for event in filtered_events:
-
-            user_node = f"USER:{event.user}"
-
-            host_node = f"HOST:{event.host}"
-
-            graph.add_node(
-
-                user_node,
-                node_type="user"
-            )
-
-            graph.add_node(
-
-                host_node,
-                node_type="host"
-            )
-
-            # USER → HOST ACCESS
-
-            graph.add_edge(
-
-                user_node,
-                host_node,
-
-                edge_type="access"
-            )
-
-            # -----------------------------------
-            # AUTH ACTIVITY
-            # -----------------------------------
-
-            if event.activity.lower() == "logon":
-
-                auth_node = "AUTH_ACTIVITY"
+                host_node = (
+                    f"HOST:{event.host}"
+                )
 
                 graph.add_node(
 
-                    auth_node,
-                    node_type="auth"
+                    user_node,
+
+                    color="skyblue"
+                )
+
+                graph.add_node(
+
+                    host_node,
+
+                    color="lightgreen"
                 )
 
                 graph.add_edge(
 
-                    host_node,
-                    auth_node,
+                    user_node,
 
-                    edge_type="auth"
+                    host_node
                 )
 
-            # -----------------------------------
-            # LATERAL MOVEMENT
-            # -----------------------------------
+                # -----------------------------------------
+                # HIGH RISK HOSTS
+                # -----------------------------------------
 
-            if event.user in users_seen:
+                if event.host in self.evidence.get(
 
-                previous_host = (
-                    users_seen[event.user]
-                )
+                    "HighRiskHosts",
 
-                if previous_host != event.host:
+                    []
+                ):
 
-                    previous_host_node = (
-                        f"HOST:{previous_host}"
-                    )
-
-                    lateral_node = (
-                        f"LATERAL:{event.host}"
+                    alert_node = (
+                        f"ALERT:{event.host}"
                     )
 
                     graph.add_node(
 
-                        lateral_node,
-                        node_type="lateral"
+                        alert_node,
+
+                        color="red"
                     )
 
                     graph.add_edge(
 
-                        previous_host_node,
-                        lateral_node,
-
-                        edge_type="lateral"
-                    )
-
-                    graph.add_edge(
-
-                        lateral_node,
                         host_node,
 
-                        edge_type="movement"
+                        alert_node
                     )
 
-            users_seen[event.user] = event.host
+        # =================================================
+        # CIC IDS2017
+        # IP COMMUNICATION GRAPH
+        # =================================================
 
-            # -----------------------------------
-            # TEMPORAL ATTACK PATHS
-            # -----------------------------------
+        elif dataset_type == "CIC_IDS2017":
 
-            if previous_event:
+            for event in self.events[:40]:
 
-                previous_host_node = (
-                    f"HOST:{previous_event.host}"
+                src_node = (
+                    f"SRC:{event.src_ip}"
                 )
 
-                current_host_node = (
-                    f"HOST:{event.host}"
+                dst_node = (
+                    f"DST:{event.dst_ip}"
                 )
 
-                if previous_host_node != current_host_node:
+                graph.add_node(
+
+                    src_node,
+
+                    color="orange"
+                )
+
+                graph.add_node(
+
+                    dst_node,
+
+                    color="lightgreen"
+                )
+
+                graph.add_edge(
+
+                    src_node,
+
+                    dst_node
+                )
+
+                # -----------------------------------------
+                # BOTNET / DOS ALERTS
+                # -----------------------------------------
+
+                if self.evidence.get(
+                    "BotnetActivity",
+                    0
+                ):
+
+                    alert_node = (
+                        f"BOTNET_ALERT"
+                    )
+
+                    graph.add_node(
+
+                        alert_node,
+
+                        color="red"
+                    )
 
                     graph.add_edge(
 
-                        previous_host_node,
-                        current_host_node,
+                        src_node,
 
-                        edge_type="attack_path"
+                        alert_node
                     )
 
-            previous_event = event
+                if self.evidence.get(
+                    "PotentialDoS",
+                    0
+                ) > 10:
 
-        # -----------------------------------
-        # ALERT NODES
-        # -----------------------------------
+                    dos_node = (
+                        "DOS_ACTIVITY"
+                    )
 
-        for host in suspicious_hosts:
+                    graph.add_node(
 
-            host_node = f"HOST:{host}"
+                        dos_node,
 
-            alert_node = f"ALERT:{host}"
+                        color="purple"
+                    )
 
-            graph.add_node(
+                    graph.add_edge(
 
-                alert_node,
-                node_type="alert"
-            )
+                        src_node,
 
-            graph.add_edge(
+                        dos_node
+                    )
 
-                host_node,
-                alert_node,
+        # =================================================
+        # PHISHING
+        # DOMAIN REPUTATION GRAPH
+        # =================================================
 
-                edge_type="alert"
-            )
+        elif dataset_type == "PHISHING":
+
+            for event in self.events[:40]:
+
+                url = str(event.url)
+
+                short_url = url[:40]
+
+                url_node = (
+                    f"URL:{short_url}"
+                )
+
+                graph.add_node(
+
+                    url_node,
+
+                    color="gold"
+                )
+
+                label = str(event.label).lower()
+
+                if label == "bad":
+
+                    malicious_node = (
+                        "MALICIOUS_DOMAIN"
+                    )
+
+                    graph.add_node(
+
+                        malicious_node,
+
+                        color="red"
+                    )
+
+                    graph.add_edge(
+
+                        url_node,
+
+                        malicious_node
+                    )
+
+                else:
+
+                    benign_node = (
+                        "BENIGN_DOMAIN"
+                    )
+
+                    graph.add_node(
+
+                        benign_node,
+
+                        color="lightgreen"
+                    )
+
+                    graph.add_edge(
+
+                        url_node,
+
+                        benign_node
+                    )
 
         return graph
+
+    # =================================================
+    # DRAW GRAPH
+    # =================================================
 
     def draw_graph(self):
 
         graph = self.build_graph()
 
-        plt.figure(figsize=(16, 10))
+        plt.figure(figsize=(14, 8))
 
         pos = nx.spring_layout(
 
             graph,
 
-            seed=42,
+            seed=random.randint(1, 9999),
 
-            k=3.2
+            k=1.8
         )
-
-        # -----------------------------------
-        # NODE COLORS
-        # -----------------------------------
 
         node_colors = []
 
-        for _, data in graph.nodes(data=True):
+        for node in graph.nodes():
 
-            node_type = data.get("node_type")
+            node_colors.append(
 
-            if node_type == "alert":
-
-                node_colors.append("red")
-
-            elif node_type == "lateral":
-
-                node_colors.append("orange")
-
-            elif node_type == "host":
-
-                node_colors.append("lightgreen")
-
-            elif node_type == "auth":
-
-                node_colors.append("yellow")
-
-            else:
-
-                node_colors.append("skyblue")
-
-        # -----------------------------------
-        # EDGE COLORS
-        # -----------------------------------
-
-        edge_colors = []
-
-        for _, _, data in graph.edges(data=True):
-
-            edge_type = data.get("edge_type")
-
-            if edge_type == "alert":
-
-                edge_colors.append("red")
-
-            elif edge_type == "lateral":
-
-                edge_colors.append("orange")
-
-            elif edge_type == "auth":
-
-                edge_colors.append("gold")
-
-            elif edge_type == "attack_path":
-
-                edge_colors.append("purple")
-
-            else:
-
-                edge_colors.append("gray")
-
-        # -----------------------------------
-        # DRAW GRAPH
-        # -----------------------------------
+                graph.nodes[node].get(
+                    "color",
+                    "skyblue"
+                )
+            )
 
         nx.draw(
 
             graph,
+
             pos,
 
-            with_labels=False,
+            with_labels=True,
 
             node_color=node_colors,
 
-            edge_color=edge_colors,
+            node_size=2500,
 
-            node_size=1700,
+            font_size=7,
 
-            width=2,
+            arrows=True,
 
-            alpha=0.85
-        )
-
-        # -----------------------------------
-        # IMPORTANT LABELS ONLY
-        # -----------------------------------
-
-        important_labels = {
-
-            node: node
-
-            for node, data in graph.nodes(data=True)
-
-            if data.get("node_type") in [
-
-                "alert",
-                "lateral",
-                "host"
-            ]
-        }
-
-        nx.draw_networkx_labels(
-
-            graph,
-            pos,
-
-            labels=important_labels,
-
-            font_size=8
+            edge_color="gray"
         )
 
         plt.title(
 
-            "SOC Attack Correlation Graph",
+            "SOC Threat Correlation Graph",
 
-            fontsize=16,
-
-            fontweight="bold"
+            fontsize=16
         )
-
-        plt.axis("off")
 
         return plt

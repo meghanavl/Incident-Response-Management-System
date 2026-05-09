@@ -4,34 +4,97 @@ class TimelineEngine:
 
         timeline = []
 
-        if evidence["AfterHoursLogins"] > 5:
+        # -----------------------------------
+        # CMU CERT
+        # -----------------------------------
+
+        if evidence.get(
+            "AfterHoursLogins",
+            0
+        ) > 5:
 
             timeline.append(
-                "After-hours authentication activity detected"
+                "After-hours enterprise access detected"
             )
 
-        if evidence["SuspiciousLogons"] > 20:
+        if evidence.get(
+            "CredentialAbuse",
+            0
+        ):
 
             timeline.append(
-                "Repeated authentication anomalies identified"
+                "Credential abuse indicators observed"
             )
 
-        if evidence["CredentialAbuse"]:
+        if evidence.get(
+            "LateralMovement",
+            0
+        ) > 5:
 
             timeline.append(
-                "Credential abuse behavior suspected"
+                "Potential lateral movement identified"
             )
 
-        if evidence["LateralMovement"] > 10:
+        # -----------------------------------
+        # CIC IDS
+        # -----------------------------------
+
+        if evidence.get(
+            "PotentialDoS",
+            0
+        ) > 10:
 
             timeline.append(
-                "Potential lateral movement across endpoints detected"
+                "Potential denial-of-service activity detected"
             )
 
-        if not timeline:
+        if evidence.get(
+            "BotnetActivity",
+            0
+        ):
 
-            timeline = [
-                "Suspicious authentication activity observed"
-            ]
+            timeline.append(
+                "Botnet communication behavior identified"
+            )
+
+        if evidence.get(
+            "InfiltrationAttempts",
+            0
+        ):
+
+            timeline.append(
+                "Possible network infiltration attempt detected"
+            )
+
+        # -----------------------------------
+        # PHISHING
+        # -----------------------------------
+
+        if evidence.get(
+            "MaliciousURLs",
+            0
+        ) > 10:
+
+            timeline.append(
+                "Large phishing URL campaign identified"
+            )
+
+        if evidence.get(
+            "CredentialHarvesting",
+            0
+        ):
+
+            timeline.append(
+                "Credential harvesting indicators detected"
+            )
+
+        if evidence.get(
+            "SuspiciousDomains",
+            0
+        ) > 10:
+
+            timeline.append(
+                "Suspicious spoofed domains observed"
+            )
 
         return timeline

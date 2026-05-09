@@ -2,30 +2,78 @@ class RecommendationEngine:
 
     def generate(self, evidence):
 
-        actions = []
+        recommendations = []
 
-        if evidence["CredentialAbuse"]:
+        # -----------------------------------
+        # CMU CERT
+        # -----------------------------------
 
-            actions.append(
-                "Force password reset for affected users"
+        if evidence.get(
+            "CredentialAbuse",
+            0
+        ):
+
+            recommendations.append(
+                "Reset compromised enterprise credentials"
             )
 
-        if evidence["LateralMovement"] > 10:
+        if evidence.get(
+            "LateralMovement",
+            0
+        ) > 5:
 
-            actions.append(
-                "Isolate suspicious endpoints"
+            recommendations.append(
+                "Isolate affected enterprise endpoints"
             )
 
-        if evidence["AfterHoursLogins"] > 5:
+        # -----------------------------------
+        # CIC IDS
+        # -----------------------------------
 
-            actions.append(
-                "Review after-hours authentication activity"
+        if evidence.get(
+            "PotentialDoS",
+            0
+        ) > 10:
+
+            recommendations.append(
+                "Enable network traffic filtering and rate limiting"
             )
 
-        if not actions:
+        if evidence.get(
+            "BotnetActivity",
+            0
+        ):
 
-            actions.append(
+            recommendations.append(
+                "Investigate compromised hosts for botnet communication"
+            )
+
+        # -----------------------------------
+        # PHISHING
+        # -----------------------------------
+
+        if evidence.get(
+            "MaliciousURLs",
+            0
+        ) > 10:
+
+            recommendations.append(
+                "Block malicious URLs and domains immediately"
+            )
+
+        if evidence.get(
+            "CredentialHarvesting",
+            0
+        ):
+
+            recommendations.append(
+                "Force password reset for potentially targeted users"
+            )
+
+        if not recommendations:
+
+            recommendations.append(
                 "Continue monitoring security telemetry"
             )
 
-        return actions
+        return recommendations

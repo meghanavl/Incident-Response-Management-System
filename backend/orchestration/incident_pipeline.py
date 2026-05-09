@@ -1,103 +1,239 @@
 from data_pipeline.ingestion.log_ingestor import LogIngestor
-from data_pipeline.normalization.event_normalizer import EventNormalizer
 
-from backend.detections.auth_detector import AuthenticationDetector
-from backend.detections.credential_abuse_detector import CredentialAbuseDetector
-from backend.detections.lateral_movement_detector import LateralMovementDetector
+from data_pipeline.normalization.event_normalizer import (
+    EventNormalizer
+)
 
-from backend.analytics.severity_engine import SeverityEngine
-from backend.analytics.timeline_engine import TimelineEngine
-from backend.analytics.recommendation_engine import RecommendationEngine
-from backend.analytics.killchain_mapper import KillChainMapper
+from backend.detections.auth_detector import (
+    AuthenticationDetector
+)
 
-from backend.intelligence.attack_mapper import AttackMapper
+from backend.detections.credential_abuse_detector import (
+    CredentialAbuseDetector
+)
+
+from backend.detections.lateral_movement_detector import (
+    LateralMovementDetector
+)
+
+from backend.analytics.severity_engine import (
+    SeverityEngine
+)
+
+from backend.analytics.timeline_engine import (
+    TimelineEngine
+)
+
+from backend.analytics.recommendation_engine import (
+    RecommendationEngine
+)
+
+from backend.analytics.killchain_mapper import (
+    KillChainMapper
+)
+
+from backend.intelligence.attack_mapper import (
+    AttackMapper
+)
+
+from backend.intelligence.bayesian_engine import (
+    BayesianEngine
+)
+
+from backend.intelligence.dataset_profiles import (
+    DATASET_PROFILES
+)
+
+from backend.evidence.cmu_evidence import (
+    CMUEvidenceEngine
+)
+
+from backend.evidence.cic_evidence import (
+    CICEvidenceEngine
+)
+
+from backend.evidence.phishing_evidence import (
+    PhishingEvidenceEngine
+)
 
 
 class IncidentPipeline:
 
+    def __init__(self, dataset_name):
+
+        self.dataset_name = dataset_name
+
     def run(self):
 
-        # INGESTION
+        # -----------------------------------
+        # DATASET PROFILE
+        # -----------------------------------
 
-        ingestor = LogIngestor()
+        profile = DATASET_PROFILES[
+
+            self.dataset_name
+        ]
+
+        # -----------------------------------
+        # INGESTION
+        # -----------------------------------
+
+        ingestor = LogIngestor(
+
+            profile["dataset_path"]
+        )
 
         raw_logs = ingestor.fetch_logs()
 
+        # -----------------------------------
         # NORMALIZATION
+        # -----------------------------------
 
         normalizer = EventNormalizer()
 
-        events = normalizer.normalize(raw_logs)
-
-        # DETECTIONS
-
-        auth = AuthenticationDetector().detect(events)
-
-        credential = (
-            CredentialAbuseDetector().detect(events)
+        events = normalizer.normalize(
+            raw_logs,
+            self.dataset_name
         )
 
-        movement = (
-            LateralMovementDetector().detect(events)
-        )
+        # -----------------------------------
+        # EVIDENCE EXTRACTION
+        # -----------------------------------
 
-        # MERGE EVIDENCE
+        if self.dataset_name == "CMU_CERT":
 
-        evidence = {
-            **auth,
-            **credential,
-            **movement
-        }
+            evidence = (
 
-        evidence["Users"] = len(
-            set([e.user for e in events])
-        )
+                CMUEvidenceEngine()
 
-        evidence["AffectedHosts"] = len(
-            set([e.host for e in events])
-        )
+                .extract(events)
+            )
 
-        # ANALYTICS
+        elif self.dataset_name == "CIC_IDS2017":
 
-        severity_data = (
-            SeverityEngine().calculate(evidence)
-        )
+            evidence = (
 
-        timeline = (
-            TimelineEngine().build(evidence)
-        )
+                CICEvidenceEngine()
 
-        recommendations = (
-            RecommendationEngine().generate(evidence)
-        )
+                .extract(raw_logs)
+            )
 
-        kill_chain = (
-            KillChainMapper().map_phases(evidence)
-        )
+        elif self.dataset_name == "PHISHING":
 
-        attack_mapping = (
-            AttackMapper().map_attack_techniques(
+            evidence = (
+
+                PhishingEvidenceEngine()
+
+                .extract(raw_logs)
+            )
+
+        else:
+
+            evidence = {}
+
+        
+        # -----------------------------------
+        # BAYESIAN ANALYSIS
+        # -----------------------------------
+
+        bayesian_analysis = (
+
+            BayesianEngine()
+
+            .calculate_threat_probability(
                 evidence
             )
         )
 
+        # -----------------------------------
+        # SEVERITY
+        # -----------------------------------
+
+        severity_data = (
+
+            SeverityEngine().calculate(
+
+                evidence,
+
+                bayesian_analysis
+            )
+        )
+
+        # -----------------------------------
+        # TIMELINE
+        # -----------------------------------
+
+        timeline = (
+            TimelineEngine().build(
+                evidence
+            )
+        )
+
+        # -----------------------------------
+        # RECOMMENDATIONS
+        # -----------------------------------
+
+        recommendations = (
+
+            RecommendationEngine()
+            .generate(evidence)
+        )
+
+        # -----------------------------------
+        # KILL CHAIN
+        # -----------------------------------
+
+        kill_chain = (
+
+            KillChainMapper()
+            .map_phases(evidence, self.dataset_name)
+        )
+
+        # -----------------------------------
+        # MITRE ATT&CK
+        # -----------------------------------
+
+        attack_mapping = (
+
+            AttackMapper()
+
+            .map_attack_techniques(
+                evidence,
+                self.dataset_name
+            )
+        )
+
+        # -----------------------------------
+        # RETURN RESULTS
+        # -----------------------------------
+
         return {
 
             "events": events,
+
             "raw_logs": raw_logs,
+
+            "dataset_profile": profile,
 
             "evidence": evidence,
 
-            "severity": severity_data["severity"],
+            "severity":
+            severity_data["severity"],
 
-            "scores": severity_data["scores"],
+            "scores":
+            severity_data["scores"],
 
             "timeline": timeline,
 
-            "recommendations": recommendations,
+            "recommendations":
+            recommendations,
 
-            "kill_chain": kill_chain,
+            "kill_chain":
+            kill_chain,
 
-            "attack_mapping": attack_mapping
+            "attack_mapping":
+            attack_mapping,
 
+            "bayesian_analysis":
+            bayesian_analysis
         }

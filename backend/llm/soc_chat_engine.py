@@ -1,66 +1,109 @@
-#chatbot/soc_chat_engine.py
 import ollama
 
 
 class SOCChatEngine:
 
-    def __init__(self, evidence):
+    def __init__(
 
-        self.evidence = evidence
+        self,
+
+        results
+    ):
+
+        self.results = results
+
+        self.evidence = results["evidence"]
+
+        self.profile = results[
+            "dataset_profile"
+        ]
+
+        self.bayesian = results[
+            "bayesian_analysis"
+        ]
+
+        self.attack_mapping = results[
+            "attack_mapping"
+        ]
+
+        self.kill_chain = results[
+            "kill_chain"
+        ]
+
+        self.severity = results[
+            "severity"
+        ]
+
+    # =================================================
+    # BUILD CONTEXT
+    # =================================================
 
     def build_context(self):
 
         return f"""
-You are an expert SOC (Security Operations Center)
-incident response analyst.
+You are an expert SOC analyst.
 
-You are analyzing enterprise insider threat
-telemetry from the CMU CERT dataset.
+You are analyzing cybersecurity telemetry.
 
-Current security evidence:
+DATASET DOMAIN:
+{self.profile["domain"]}
+
+DATASET DESCRIPTION:
+{self.profile["description"]}
+
+THREAT SEVERITY:
+{self.severity}
+
+SECURITY EVIDENCE:
 {self.evidence}
 
-Your responsibilities:
+BAYESIAN THREAT ANALYSIS:
+{self.bayesian}
 
-- Identify suspicious attacker behavior
-- Infer attack progression
-- Detect possible credential abuse
-- Detect possible lateral movement
+MITRE ATT&CK MAPPING:
+{self.attack_mapping}
+
+CYBER KILL CHAIN PHASES:
+{self.kill_chain}
+
+YOUR RESPONSIBILITIES:
+
+- Analyze attacker behavior
+- Explain security findings
+- Explain probable attacker objectives
 - Explain incident severity
-- Provide threat attribution insights
-- Map behavior to MITRE ATT&CK tactics
-- Recommend response actions
+- Reference MITRE ATT&CK techniques
+- Reference kill chain phases
+- Recommend incident response actions
+- Answer like a SOC analyst
 
-RESPONSE FORMAT RULES:
+RESPONSE RULES:
 
-- Maximum 4 bullet points
-- Maximum 2 short sentences per bullet
-- NO paragraphs
-- NO generic AI explanations
-- Prioritize:
-    1. Threat summary
-    2. Root cause
-    3. Severity
-    4. Recommended action
-- Sound like a SOC analyst writing an escalation note
-- Keep responses operational and concise
-- Base conclusions ONLY on evidence
-- Clearly explain your reasoning
-
-EXAMPLE RESPONSE STYLE:
-
-- Multiple after-hours logins detected.
-- Lateral movement observed across enterprise endpoints.
-- Credential abuse behavior likely based on repeated authentication anomalies.
-- Recommend isolating affected hosts and resetting compromised accounts.
+- Maximum 5 bullet points
+- Concise operational language
+- NO large paragraphs
+- NO generic AI assistant phrasing
+- Focus on actionable insights
+- Reference the dataset domain when relevant
+- Base conclusions ONLY on provided telemetry
 """
 
-    def process_query(self, user_query):
-        # -----------------------------------
-        # SIMPLE CONVERSATIONAL HANDLING
-        # -----------------------------------
+    # =================================================
+    # QUERY PROCESSING
+    # =================================================
 
-        simple_greetings = [
+    def process_query(
+
+        self,
+
+        user_query
+    ):
+
+        # ---------------------------------------------
+        # GREETING HANDLER
+        # ---------------------------------------------
+
+        greetings = [
 
             "hi",
             "hello",
@@ -69,14 +112,18 @@ EXAMPLE RESPONSE STYLE:
             "good evening"
         ]
 
-        if user_query.lower().strip() in simple_greetings:
+        if user_query.lower().strip() in greetings:
 
             return (
-                "Hello. I'm your SOC AI analyst assistant. "
-                "Ask me about the current incident, "
-                "threat activity, ATT&CK techniques, "
-                "or response recommendations."
+                f"Hello. SOC AI Assistant active for "
+                f"{self.profile['domain']} telemetry. "
+                f"Ask about threats, ATT&CK mapping, "
+                f"severity analysis, or response actions."
             )
+
+        # ---------------------------------------------
+        # OLLAMA RESPONSE
+        # ---------------------------------------------
 
         response = ollama.chat(
 
@@ -86,12 +133,16 @@ EXAMPLE RESPONSE STYLE:
 
                 {
                     "role": "system",
-                    "content": self.build_context()
+
+                    "content":
+                    self.build_context()
                 },
 
                 {
                     "role": "user",
-                    "content": user_query
+
+                    "content":
+                    user_query
                 }
             ]
         )
