@@ -1,317 +1,387 @@
-import random
-
 import networkx as nx
-
 import matplotlib.pyplot as plt
 
 
 class GraphEngine:
 
-    def __init__(
+    def build_graph(
 
         self,
 
         events,
 
-        evidence
+        dataset_name
     ):
 
-        self.events = events
+        # =====================================
+        # DEBUGGING
+        # =====================================
 
-        self.evidence = evidence
+        print("\n==============================")
+        print("GRAPH ENGINE DEBUG")
+        print("==============================")
+        print("DATASET:", dataset_name)
+        print("TOTAL EVENTS:", len(events))
 
-    # =================================================
-    # BUILD GRAPH
-    # =================================================
+        if len(events) > 0:
 
-    def build_graph(self):
+            print("FIRST EVENT:")
+            print(vars(events[0]))
 
-        graph = nx.DiGraph()
+        # =====================================
+        # GRAPH OBJECT
+        # =====================================
 
-        if not self.events:
+        G = nx.Graph()
 
-            return graph
-
-        dataset_type = self.events[0].dataset_type
-
-        # =================================================
+        # =====================================
         # CMU CERT
-        # USER ↔ HOST RELATIONSHIPS
-        # =================================================
+        # USER -> HOST -> ACTIVITY
+        # =====================================
 
-        if dataset_type == "CMU_CERT":
+        if "CMU" in dataset_name:
 
-            for event in self.events[:40]:
+            for event in events[:40]:
 
-                user_node = (
-                    f"USER:{event.user}"
-                )
+                if not event.user or not event.host:
+                    continue
 
-                host_node = (
-                    f"HOST:{event.host}"
-                )
+                user_node = f"USER:{event.user}"
 
-                graph.add_node(
+                host_node = f"HOST:{event.host}"
 
+                activity_node = f"ACT:{event.activity}"
+
+                # ---------------------------------
+                # NODE COLORS
+                # ---------------------------------
+
+                G.add_node(
                     user_node,
-
                     color="skyblue"
                 )
 
-                graph.add_node(
-
+                G.add_node(
                     host_node,
-
                     color="lightgreen"
                 )
 
-                graph.add_edge(
+                suspicious_keywords = [
 
+                    "usb",
+                    "file copy",
+                    "logon",
+                    "http"
+                ]
+
+                activity_color = "orange"
+
+                for keyword in suspicious_keywords:
+
+                    if keyword in str(
+                        event.activity
+                    ).lower():
+
+                        activity_color = "red"
+
+                G.add_node(
+                    activity_node,
+                    color=activity_color
+                )
+
+                # ---------------------------------
+                # RELATIONSHIPS
+                # ---------------------------------
+
+                G.add_edge(
                     user_node,
-
                     host_node
                 )
 
-                # -----------------------------------------
-                # HIGH RISK HOSTS
-                # -----------------------------------------
+                G.add_edge(
+                    host_node,
+                    activity_node
+                )
 
-                if event.host in self.evidence.get(
-
-                    "HighRiskHosts",
-
-                    []
-                ):
-
-                    alert_node = (
-                        f"ALERT:{event.host}"
-                    )
-
-                    graph.add_node(
-
-                        alert_node,
-
-                        color="red"
-                    )
-
-                    graph.add_edge(
-
-                        host_node,
-
-                        alert_node
-                    )
-
-        # =================================================
+        # =====================================
         # CIC IDS2017
-        # IP COMMUNICATION GRAPH
-        # =================================================
+        # PORT -> ATTACK CATEGORY
+        # =====================================
 
-        elif dataset_type == "CIC_IDS2017":
+        elif "CIC" in dataset_name:
 
-            for event in self.events[:40]:
+            for event in events[:60]:
 
-                src_node = (
-                    f"SRC:{event.src_ip}"
+                if not event.protocol:
+                    continue
+
+                port_node = (
+                    f"PORT:{event.protocol}"
                 )
 
-                dst_node = (
-                    f"DST:{event.dst_ip}"
+                attack_node = (
+                    f"ATTACK:{event.activity}"
                 )
 
-                graph.add_node(
+                # ---------------------------------
+                # PORT NODE
+                # ---------------------------------
 
-                    src_node,
+                G.add_node(
+
+                    port_node,
 
                     color="orange"
                 )
 
-                graph.add_node(
+                # ---------------------------------
+                # ATTACK NODE
+                # ---------------------------------
 
-                    dst_node,
+                label = str(
+                    event.activity
+                ).lower()
 
-                    color="lightgreen"
-                )
+                if "benign" in label:
 
-                graph.add_edge(
-
-                    src_node,
-
-                    dst_node
-                )
-
-                # -----------------------------------------
-                # BOTNET / DOS ALERTS
-                # -----------------------------------------
-
-                if self.evidence.get(
-                    "BotnetActivity",
-                    0
-                ):
-
-                    alert_node = (
-                        f"BOTNET_ALERT"
-                    )
-
-                    graph.add_node(
-
-                        alert_node,
-
-                        color="red"
-                    )
-
-                    graph.add_edge(
-
-                        src_node,
-
-                        alert_node
-                    )
-
-                if self.evidence.get(
-                    "PotentialDoS",
-                    0
-                ) > 10:
-
-                    dos_node = (
-                        "DOS_ACTIVITY"
-                    )
-
-                    graph.add_node(
-
-                        dos_node,
-
-                        color="purple"
-                    )
-
-                    graph.add_edge(
-
-                        src_node,
-
-                        dos_node
-                    )
-
-        # =================================================
-        # PHISHING
-        # DOMAIN REPUTATION GRAPH
-        # =================================================
-
-        elif dataset_type == "PHISHING":
-
-            for event in self.events[:40]:
-
-                url = str(event.url)
-
-                short_url = url[:40]
-
-                url_node = (
-                    f"URL:{short_url}"
-                )
-
-                graph.add_node(
-
-                    url_node,
-
-                    color="gold"
-                )
-
-                label = str(event.label).lower()
-
-                if label == "bad":
-
-                    malicious_node = (
-                        "MALICIOUS_DOMAIN"
-                    )
-
-                    graph.add_node(
-
-                        malicious_node,
-
-                        color="red"
-                    )
-
-                    graph.add_edge(
-
-                        url_node,
-
-                        malicious_node
-                    )
+                    attack_color = "lightgreen"
 
                 else:
 
-                    benign_node = (
-                        "BENIGN_DOMAIN"
-                    )
+                    attack_color = "red"
 
-                    graph.add_node(
+                G.add_node(
 
-                        benign_node,
+                    attack_node,
 
-                        color="lightgreen"
-                    )
+                    color=attack_color
+                )
 
-                    graph.add_edge(
+                # ---------------------------------
+                # RELATIONSHIP
+                # ---------------------------------
 
-                        url_node,
+                G.add_edge(
 
-                        benign_node
-                    )
+                    port_node,
 
-        return graph
+                    attack_node
+                )
 
-    # =================================================
-    # DRAW GRAPH
-    # =================================================
+        # =====================================
+        # PHISHING
+        # DOMAIN -> BRAND -> TLD
+        # =====================================
 
-    def draw_graph(self):
+        elif "PHISHING" in dataset_name.upper():
 
-        graph = self.build_graph()
+            suspicious_keywords = [
 
-        plt.figure(figsize=(14, 8))
+                "paypal",
+                "bank",
+                "login",
+                "verify",
+                "account",
+                "secure",
+                "update",
+                "apple",
+                "amazon",
+                "microsoft"
+            ]
+
+            for event in events[:50]:
+
+                if not event.url:
+                    continue
+
+                url = str(event.url).lower()
+
+                url_node = url[:35]
+
+                label = str(
+                    event.label
+                ).lower()
+
+                # ---------------------------------
+                # URL NODE COLOR
+                # ---------------------------------
+
+                if "bad" in label:
+
+                    url_color = "red"
+
+                else:
+
+                    url_color = "gold"
+
+                G.add_node(
+
+                    url_node,
+
+                    color=url_color
+                )
+
+                # =================================
+                # BRAND / KEYWORD CORRELATION
+                # =================================
+
+                for keyword in suspicious_keywords:
+
+                    if keyword in url:
+
+                        keyword_node = (
+                            f"KW:{keyword.upper()}"
+                        )
+
+                        G.add_node(
+
+                            keyword_node,
+
+                            color="violet"
+                        )
+
+                        G.add_edge(
+
+                            url_node,
+
+                            keyword_node
+                        )
+
+                # =================================
+                # TLD CORRELATION
+                # =================================
+
+                tlds = [
+
+                    ".ru",
+                    ".tk",
+                    ".biz",
+                    ".cn",
+                    ".xyz",
+                    ".com"
+                ]
+
+                for tld in tlds:
+
+                    if tld in url:
+
+                        tld_node = (
+                            f"TLD:{tld}"
+                        )
+
+                        G.add_node(
+
+                            tld_node,
+
+                            color="cyan"
+                        )
+
+                        G.add_edge(
+
+                            url_node,
+
+                            tld_node
+                        )
+
+        # =====================================
+        # EMPTY SAFETY
+        # =====================================
+
+        fig, ax = plt.subplots(
+
+            figsize=(15, 10)
+        )
+
+        if G.number_of_nodes() == 0:
+
+            ax.text(
+
+                0.5,
+                0.5,
+
+                "No graph data available",
+
+                ha="center",
+
+                fontsize=14
+            )
+
+            return fig
+
+        # =====================================
+        # GRAPH DRAWING
+        # =====================================
+
+        colors = [
+
+            G.nodes[node]["color"]
+
+            for node in G.nodes()
+        ]
 
         pos = nx.spring_layout(
 
-            graph,
+            G,
 
-            seed=random.randint(1, 9999),
+            seed=42,
 
-            k=1.8
+            k=2.4
         )
-
-        node_colors = []
-
-        for node in graph.nodes():
-
-            node_colors.append(
-
-                graph.nodes[node].get(
-                    "color",
-                    "skyblue"
-                )
-            )
 
         nx.draw(
 
-            graph,
+            G,
 
             pos,
 
+            ax=ax,
+
             with_labels=True,
 
-            node_color=node_colors,
+            node_color=colors,
 
-            node_size=2500,
+            node_size=700,
 
-            font_size=7,
+            font_size=6,
 
-            arrows=True,
+            edge_color="gray",
 
-            edge_color="gray"
+            alpha=0.85
         )
 
-        plt.title(
+        # =====================================
+        # DYNAMIC TITLES
+        # =====================================
 
-            "SOC Threat Correlation Graph",
+        if "CMU" in dataset_name:
+
+            title = (
+                "User-Host Behavioral Relationship Graph"
+            )
+
+        elif "CIC" in dataset_name:
+
+            title = (
+                "Network Attack Surface Communication Graph"
+            )
+
+        elif "PHISHING" in dataset_name.upper():
+
+            title = (
+                "Phishing Campaign Infrastructure Graph"
+            )
+
+        else:
+
+            title = (
+                "SOC Threat Correlation Graph"
+            )
+
+        ax.set_title(
+
+            title,
 
             fontsize=16
         )
 
-        return plt
+        return fig

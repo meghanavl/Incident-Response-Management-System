@@ -1,104 +1,126 @@
+from collections import Counter
+
+
 class NetworkIOCEngine:
 
-    def extract(self, dataframe):
+    def analyze(self, dataframe):
 
-        # -----------------------------------
-        # CLEAN COLUMNS
-        # -----------------------------------
+        results = {}
 
-        dataframe.columns = (
-            dataframe.columns.str.strip()
-        )
+        # =====================================
+        # ATTACK LABELS
+        # =====================================
 
-        # -----------------------------------
-        # IOC OBJECT
-        # -----------------------------------
+        if "Label" in dataframe.columns:
 
-        iocs = {
+            labels = dataframe["Label"].value_counts()
 
-            "TopSourceIPs": {},
+            results["attack_categories"] = (
 
-            "TopDestinationPorts": {},
-
-            "ProtocolUsage": {},
-
-            "AttackLabels": {}
-        }
-
-        # -----------------------------------
-        # SOURCE IPS
-        # -----------------------------------
-
-        if "Source Port" in dataframe.columns:
-
-            top_sources = (
-
-                dataframe["Source Port"]
-
-                .value_counts()
-
-                .head(5)
+                labels.to_dict()
             )
 
-            iocs["TopSourceIPs"] = (
-                top_sources.to_dict()
+            malicious = 0
+
+            total = len(dataframe)
+
+            for label, count in labels.items():
+
+                if str(label).upper() != "BENIGN":
+
+                    malicious += count
+
+            ratio = round(
+
+                (malicious / total) * 100,
+
+                2
             )
 
-        # -----------------------------------
-        # DESTINATION PORTS
-        # -----------------------------------
+            results["malicious_flow_ratio"] = ratio
+
+        else:
+
+            results["attack_categories"] = {}
+
+            results["malicious_flow_ratio"] = 0
+
+        # =====================================
+        # TARGETED PORTS
+        # =====================================
 
         if "Destination Port" in dataframe.columns:
 
             top_ports = (
 
-                dataframe["Destination Port"]
-
-                .value_counts()
-
-                .head(5)
-            )
-
-            iocs["TopDestinationPorts"] = (
-                top_ports.to_dict()
-            )
-
-        # -----------------------------------
-        # PROTOCOLS
-        # -----------------------------------
-
-        if "Protocol" in dataframe.columns:
-
-            protocols = (
-
-                dataframe["Protocol"]
-
-                .value_counts()
-
-                .head(5)
-            )
-
-            iocs["ProtocolUsage"] = (
-                protocols.to_dict()
-            )
-
-        # -----------------------------------
-        # ATTACK LABELS
-        # -----------------------------------
-
-        if "Label" in dataframe.columns:
-
-            labels = (
-
-                dataframe["Label"]
+                dataframe[
+                    "Destination Port"
+                ]
 
                 .value_counts()
 
                 .head(10)
+
+                .to_dict()
             )
 
-            iocs["AttackLabels"] = (
-                labels.to_dict()
+            results["top_ports"] = top_ports
+
+        else:
+
+            results["top_ports"] = {}
+
+        # =====================================
+        # FLOW DURATION
+        # =====================================
+
+        if "Flow Duration" in dataframe.columns:
+
+            results["avg_flow_duration"] = round(
+
+                dataframe[
+                    "Flow Duration"
+                ].mean(),
+
+                2
             )
 
-        return iocs
+        else:
+
+            results["avg_flow_duration"] = 0
+
+        # =====================================
+        # PACKET METRICS
+        # =====================================
+
+        if "Total Fwd Packets" in dataframe.columns:
+
+            results["avg_fwd_packets"] = round(
+
+                dataframe[
+                    "Total Fwd Packets"
+                ].mean(),
+
+                2
+            )
+
+        else:
+
+            results["avg_fwd_packets"] = 0
+
+        if "Total Backward Packets" in dataframe.columns:
+
+            results["avg_bwd_packets"] = round(
+
+                dataframe[
+                    "Total Backward Packets"
+                ].mean(),
+
+                2
+            )
+
+        else:
+
+            results["avg_bwd_packets"] = 0
+
+        return results

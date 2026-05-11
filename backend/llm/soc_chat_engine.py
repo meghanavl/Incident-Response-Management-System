@@ -288,7 +288,7 @@ THREAT PROBABILITY:
 
         response = ollama.chat(
 
-            model="phi3:mini",
+            model="tinyllama",
 
             messages=[
 

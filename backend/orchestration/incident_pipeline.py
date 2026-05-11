@@ -121,7 +121,7 @@ class IncidentPipeline:
 
                 NetworkIOCEngine()
 
-                .extract(raw_logs)
+                .analyze(raw_logs)
             )
 
         elif self.dataset_name == "PHISHING":

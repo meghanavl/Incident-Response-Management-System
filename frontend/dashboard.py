@@ -5,9 +5,9 @@ from backend.llm.soc_chat_engine import SOCChatEngine
 from backend.reporting.incident_reporter import IncidentReporter
 
 
-# ---------------------------------------------------
+# =====================================================
 # PAGE CONFIG
-# ---------------------------------------------------
+# =====================================================
 
 st.set_page_config(
 
@@ -17,9 +17,9 @@ st.set_page_config(
 )
 
 
-# ---------------------------------------------------
+# =====================================================
 # DATASET PANEL
-# ---------------------------------------------------
+# =====================================================
 
 def render_dataset_panel(profile):
 
@@ -54,347 +54,299 @@ Dataset Source:
 
     st.write(profile["description"])
 
-    st.markdown("### Available Features")
 
-    st.code(
-        ", ".join(profile["features"])
-    )
-
-    st.markdown("### Supported Attack Categories")
-
-    for attack in profile["attack_types"]:
-
-        st.markdown(f"- {attack}")
-
-
-# ---------------------------------------------------
+# =====================================================
 # MAIN DASHBOARD
-# ---------------------------------------------------
+# =====================================================
 
 def render_dashboard(results):
 
-    evidence = results["evidence"]
-
     profile = results["dataset_profile"]
 
-    # ---------------------------------------------------
+    dataset = profile["name"]
+
+    domain = profile["domain"]
+
+    evidence = results["evidence"]
+
+    # =================================================
     # TITLE
-    # ---------------------------------------------------
+    # =================================================
 
     st.title(
         "AI-Assisted SOC Incident Response Platform"
     )
 
     st.write("""
-This platform simulates an enterprise
-Security Operations Center (SOC).
+AI-driven Security Operations Center (SOC)
+for incident detection and response.
 """)
 
-    # ---------------------------------------------------
+    # =================================================
     # DATASET PROFILE
-    # ---------------------------------------------------
+    # =================================================
 
     render_dataset_panel(profile)
-    # ---------------------------------------------------
-    # LIVE SOC FEED
-    # ---------------------------------------------------
 
-    st.header("Live SOC Threat Feed")
+    # =================================================
+    # LIVE THREAT FEED
+    # =================================================
 
-    dataset = profile["domain"]
+    st.header("Live Threat Feed")
 
-    events = results["events"][:25]
+    events = results["events"][:15]
 
-    # ---------------------------------------------------
-    # CMU CERT
-    # ---------------------------------------------------
+    # =================================================
+    # COLORS
+    # =================================================
 
-    if dataset == "Insider Threat Detection":
+    severity_colors = {
 
-        for event in events:
+        "ALERT": "#ff2e63",
 
-            risk = "🟢 NORMAL"
+        "HIGH": "#ff6b35",
 
-            if event.activity.lower() == "logon":
+        "MEDIUM": "#f7b801",
 
-                risk = "🟡 AUTH EVENT"
+        "INFO": "#00d084"
+    }
 
-            if "after" in str(event.timestamp).lower():
+    # =================================================
+    # EVENT STREAM
+    # =================================================
 
-                risk = "🟠 SUSPICIOUS"
+    for index, event in enumerate(events):
 
-            st.markdown(f"""
-    <div style="
-    padding:10px;
-    border-radius:8px;
-    background-color:#111827;
-    margin-bottom:8px;
-    border-left:6px solid #3b82f6;
-    ">
+        # =============================================
+        # CMU CERT
+        # REAL TIMESTAMPS EXIST
+        # =============================================
 
-    <b>{risk}</b><br>
+        if profile["name"] == "CMU_CERT":
 
-    👤 USER:
-    {event.user}
+            timestamp = (
+                event.timestamp
+                if event.timestamp
+                else f"EVENT-{index}"
+            )
 
-    💻 HOST:
-    {event.host}
+            activity = (
+                str(event.activity)
+                if event.activity
+                else "Unknown Activity"
+            )
 
-    🕒 TIME:
-    {event.timestamp}
+            user = (
+                event.user
+                if event.user
+                else "UNKNOWN_USER"
+            )
 
-    ⚡ EVENT:
-    {event.activity}
+            host = (
+                event.host
+                if event.host
+                else "UNKNOWN_HOST"
+            )
 
-    </div>
-    """, unsafe_allow_html=True)
+            # -----------------------------------------
+            # SEVERITY
+            # -----------------------------------------
 
-    # ---------------------------------------------------
-    # CIC IDS
-    # ---------------------------------------------------
+            if "logon" in activity.lower():
 
-    elif dataset == "Network Intrusion Detection":
+                severity = "HIGH"
 
-        for event in events:
+            elif "device" in activity.lower():
 
-            severity = "🟢 NORMAL TRAFFIC"
-
-            if str(event.protocol) == "6":
-
-                severity = "🟠 TCP ACTIVITY"
-
-            st.markdown(f"""
-    <div style="
-    padding:10px;
-    border-radius:8px;
-    background-color:#111827;
-    margin-bottom:8px;
-    border-left:6px solid #ef4444;
-    ">
-
-    <b>{severity}</b><br>
-
-    🌐 SOURCE IP:
-    {event.src_ip}
-
-    🎯 DESTINATION IP:
-    {event.dst_ip}
-
-    📡 PROTOCOL:
-    {event.protocol}
-
-    ⚡ EVENT:
-    {event.activity}
-
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ---------------------------------------------------
-    # PHISHING
-    # ---------------------------------------------------
-
-    elif dataset == "Email & Web Threat Detection":
-
-        for event in events:
-
-            label = str(event.label).lower()
-
-            if label == "bad":
-
-                risk = "🔴 MALICIOUS URL"
-
-                color = "#dc2626"
+                severity = "MEDIUM"
 
             else:
 
-                risk = "🟢 BENIGN URL"
+                severity = "INFO"
 
-                color = "#16a34a"
+            # -----------------------------------------
+            # MESSAGE
+            # -----------------------------------------
 
-            st.markdown(f"""
+            message = (
+
+                f"USER={user} | "
+                f"HOST={host} | "
+                f"ACTIVITY={activity}"
+            )
+
+            prefix = f"[{timestamp}]"
+
+        # =============================================
+        # CIC IDS2017
+        # NO REAL TIMESTAMPS
+        # =============================================
+
+        elif profile["name"] == "CIC_IDS2017":
+
+            flow_id = f"FLOW-{index+1:03}"
+
+            protocol = (
+                event.protocol
+                if event.protocol
+                else "UNKNOWN"
+            )
+
+            activity = (
+                event.activity
+                if event.activity
+                else "Unknown Traffic"
+            )
+
+            # -----------------------------------------
+            # SEVERITY
+            # -----------------------------------------
+
+            if "infiltration" in str(
+                activity
+            ).lower():
+
+                severity = "ALERT"
+
+            elif "benign" in str(
+                activity
+            ).lower():
+
+                severity = "INFO"
+
+            else:
+
+                severity = "MEDIUM"
+
+            # -----------------------------------------
+            # MESSAGE
+            # -----------------------------------------
+
+            message = (
+
+                f"PORT={protocol} | "
+                f"EVENT={activity}"
+            )
+
+            prefix = f"[{flow_id}]"
+
+        # =============================================
+        # PHISHING
+        # NO REAL TIMESTAMPS
+        # =============================================
+
+        elif profile["name"] == "PHISHING":
+
+            url_id = f"URL-{index+1:03}"
+
+            url = (
+                event.url[:60]
+                if event.url
+                else "unknown-url"
+            )
+
+            label = (
+                event.label
+                if event.label
+                else "unknown"
+            )
+
+            # -----------------------------------------
+            # SEVERITY
+            # -----------------------------------------
+
+            if str(label).lower() == "bad":
+
+                severity = "ALERT"
+
+            else:
+
+                severity = "INFO"
+
+            # -----------------------------------------
+            # MESSAGE
+            # -----------------------------------------
+
+            message = (
+
+                f"DOMAIN={url} | "
+                f"LABEL={label}"
+            )
+
+            prefix = f"[{url_id}]"
+
+        # =============================================
+        # FALLBACK
+        # =============================================
+
+        else:
+
+            severity = "INFO"
+
+            prefix = f"[EVENT-{index}]"
+
+            message = str(event)
+
+        # =============================================
+        # COLOR
+        # =============================================
+
+        color = severity_colors.get(
+
+            severity,
+
+            "#00d084"
+        )
+
+        # =============================================
+        # TERMINAL STYLE FEED
+        # =============================================
+
+        st.markdown(
+
+            f"""
     <div style="
-    padding:10px;
-    border-radius:8px;
-    background-color:#111827;
+    background-color:#07111f;
+    padding:12px;
     margin-bottom:8px;
-    border-left:6px solid {color};
+    border-radius:8px;
+    font-family:monospace;
+    font-size:14px;
+    border-left:4px solid {color};
     ">
 
-    <b>{risk}</b><br>
+    <span style="color:#8b949e;">
+    {prefix}
+    </span>
 
-    🔗 URL:
-    {event.url[:100]}
+    <span style="
+    color:{color};
+    font-weight:bold;
+    margin-left:10px;
+    ">
+    {severity}
+    </span>
 
-    🏷 LABEL:
-    {event.label}
-
-    ⚡ EVENT:
-    {event.activity}
+    <span style="
+    color:white;
+    margin-left:18px;
+    ">
+    | {message}
+    </span>
 
     </div>
-    """, unsafe_allow_html=True)
-    
-    # ---------------------------------------------------
-    # EXTRACTED SECURITY EVIDENCE
-    # ---------------------------------------------------
+    """,
 
-    st.header("Extracted Security Evidence")
+            unsafe_allow_html=True
+        )
 
-    dataset = profile["domain"]
-
-    # ---------------------------------------------------
-    # CMU CERT
-    # ---------------------------------------------------
-
-    if dataset == "Insider Threat Detection":
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-
-            st.metric(
-
-                "Suspicious Logons",
-
-                evidence.get(
-                    "SuspiciousLogons",
-                    0
-                )
-            )
-
-            st.metric(
-
-                "After-Hours Activity",
-
-                evidence.get(
-                    "AfterHoursLogins",
-                    0
-                )
-            )
-
-        with col2:
-
-            st.metric(
-
-                "Credential Abuse",
-
-                evidence.get(
-                    "CredentialAbuse",
-                    0
-                )
-            )
-
-            st.metric(
-
-                "Lateral Movement",
-
-                evidence.get(
-                    "LateralMovement",
-                    0
-                )
-            )
-
-    # ---------------------------------------------------
-    # CIC IDS
-    # ---------------------------------------------------
-
-    elif dataset == "Network Intrusion Detection":
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-
-            st.metric(
-
-                "Potential DoS",
-
-                evidence.get(
-                    "PotentialDoS",
-                    0
-                )
-            )
-
-            st.metric(
-
-                "Suspicious Flows",
-
-                evidence.get(
-                    "SuspiciousFlows",
-                    0
-                )
-            )
-
-        with col2:
-
-            st.metric(
-
-                "Botnet Activity",
-
-                evidence.get(
-                    "BotnetActivity",
-                    0
-                )
-            )
-
-            st.metric(
-
-                "Infiltration Attempts",
-
-                evidence.get(
-                    "InfiltrationAttempts",
-                    0
-                )
-            )
-
-    # ---------------------------------------------------
-    # PHISHING
-    # ---------------------------------------------------
-
-    elif dataset == "Email & Web Threat Detection":
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-
-            st.metric(
-
-                "Malicious URLs",
-
-                evidence.get(
-                    "MaliciousURLs",
-                    0
-                )
-            )
-
-            st.metric(
-
-                "Suspicious Domains",
-
-                evidence.get(
-                    "SuspiciousDomains",
-                    0
-                )
-            )
-
-        with col2:
-
-            st.metric(
-
-                "Credential Harvesting",
-
-                evidence.get(
-                    "CredentialHarvesting",
-                    0
-                )
-            )
-
-    # ---------------------------------------------------
+    # =================================================
     # THREAT SCORE
-    # ---------------------------------------------------
+    # =================================================
 
     st.header("Threat Confidence Score")
 
-    score = results["scores"]
+    score = min(results["scores"], 100)
 
     st.metric(
 
@@ -403,14 +355,11 @@ Security Operations Center (SOC).
         value=score
     )
 
-    st.progress(
+    st.progress(score / 100)
 
-        min(score / 200, 1.0)
-    )
-
-    # ---------------------------------------------------
+    # =================================================
     # SEVERITY
-    # ---------------------------------------------------
+    # =================================================
 
     st.header("Incident Severity Level")
 
@@ -428,10 +377,10 @@ Security Operations Center (SOC).
 
         st.info("MEDIUM RISK INCIDENT")
 
-    # ---------------------------------------------------
-    # BAYESIAN ANALYSIS
-    # ---------------------------------------------------
 
+    # =================================================
+    # BAYESIAN
+    # =================================================
     st.header("Bayesian Threat Confidence")
 
     bayes = results["bayesian_analysis"]
@@ -447,96 +396,11 @@ Security Operations Center (SOC).
 
     st.progress(confidence / 100)
 
-    if confidence >= 80:
+    # =================================================
+    # CIC IDS
+    # =================================================
 
-        st.error(
-            bayes["label"]
-        )
-
-    elif confidence >= 60:
-
-        st.warning(
-            bayes["label"]
-        )
-
-    else:
-
-        st.info(
-            bayes["label"]
-        )
-
-    st.markdown("#### Confidence Reasoning")
-
-    for reason in bayes["reasoning"]:
-
-        st.markdown(f"- {reason}")
-
-    st.caption(
-
-        "Probabilistic threat confidence "
-        "derived from correlated "
-        "behavioral indicators."
-    )
-
-    # ---------------------------------------------------
-    # UEBA SECTION
-    # ONLY FOR CMU
-    # ---------------------------------------------------
-
-    if profile["domain"] == "Insider Threat Detection":
-
-        st.header(
-            "User & Entity Behavior Analytics"
-        )
-
-        st.write(
-            f"Unique Users Observed: "
-            f"{evidence.get('Users', 0)}"
-        )
-
-        st.write(
-            f"Affected Hosts: "
-            f"{evidence.get('AffectedHosts', 0)}"
-        )
-
-        st.write(
-            f"After-Hours Logins: "
-            f"{evidence.get('AfterHoursLogins', 0)}"
-        )
-
-        # ------------------------------------------------
-        # ENDPOINT RISK
-        # ------------------------------------------------
-
-        st.subheader(
-            "Top Risk Endpoints"
-        )
-
-        high_risk_hosts = evidence.get(
-            "HighRiskHosts",
-            []
-        )
-
-        if len(high_risk_hosts) == 0:
-
-            st.success(
-                "No critical endpoints identified."
-            )
-
-        else:
-
-            top_hosts = high_risk_hosts[:5]
-
-            for host in top_hosts:
-
-                st.error(
-                    f"{host} → HIGH RISK HOST"
-                )
-    # =====================================================
-    # NETWORK IOC ANALYSIS
-    # =====================================================
-
-    if results["dataset_profile"]["domain"] == "Network Intrusion Detection":
+    if domain == "Network Intrusion Detection":
 
         st.header(
             "Network Threat Intelligence"
@@ -547,75 +411,31 @@ Security Operations Center (SOC).
             {}
         )
 
-        col1, col2 = st.columns(2)
-
-        # -----------------------------------
-        # SOURCE IPS
-        # -----------------------------------
-
-        with col1:
-
-            st.subheader(
-                "Top Source IP Activity"
-            )
-
-            st.json(
-                iocs.get(
-                    "TopSourceIPs",
-                    {}
-                )
-            )
-
-        # -----------------------------------
-        # DESTINATION PORTS
-        # -----------------------------------
-
-        with col2:
-
-            st.subheader(
-                "Top Targeted Ports"
-            )
-
-            st.json(
-                iocs.get(
-                    "TopDestinationPorts",
-                    {}
-                )
-            )
-
-        # -----------------------------------
-        # PROTOCOLS
-        # -----------------------------------
-
-        st.subheader(
-            "Protocol Distribution"
-        )
-
-        st.json(
-            iocs.get(
-                "ProtocolUsage",
-                {}
-            )
-        )
-
-        # -----------------------------------
-        # ATTACK LABELS
-        # -----------------------------------
-
         st.subheader(
             "Observed Attack Categories"
         )
 
         st.json(
             iocs.get(
-                "AttackLabels",
+                "attack_categories",
                 {}
             )
         )
 
-    # ---------------------------------------------------
+        st.subheader(
+            "Top Targeted Ports"
+        )
+
+        st.json(
+            iocs.get(
+                "top_ports",
+                {}
+            )
+        )
+
+    # =================================================
     # TIMELINE
-    # ---------------------------------------------------
+    # =================================================
 
     st.header("Attack Timeline Reconstruction")
 
@@ -626,9 +446,9 @@ Security Operations Center (SOC).
 
         st.markdown(f"- {step}")
 
-    # ---------------------------------------------------
+    # =================================================
     # KILL CHAIN
-    # ---------------------------------------------------
+    # =================================================
 
     st.header("Cyber Kill Chain Analysis")
 
@@ -639,9 +459,9 @@ Security Operations Center (SOC).
 
         st.success(phase)
 
-    # ---------------------------------------------------
-    # MITRE ATT&CK
-    # ---------------------------------------------------
+    # =================================================
+    # MITRE
+    # =================================================
 
     st.header("MITRE ATT&CK Technique Mapping")
 
@@ -660,15 +480,9 @@ Security Operations Center (SOC).
                 f"Tactic: {attack['tactic']}"
             )
 
-    else:
-
-        st.info(
-            "No ATT&CK techniques mapped."
-        )
-
-    # ---------------------------------------------------
+    # =================================================
     # RECOMMENDATIONS
-    # ---------------------------------------------------
+    # =================================================
 
     st.header("Recommended Response Actions")
 
@@ -679,75 +493,53 @@ Security Operations Center (SOC).
 
         st.success(action)
 
-    # ---------------------------------------------------
+    # =================================================
+    # GRAPH TITLE
+    # =================================================
+
+    if dataset == "CMU_CERT":
+
+        st.header(
+            "User-Host Relationship Graph"
+        )
+
+    elif dataset == "CIC_IDS2017":
+
+        st.header(
+            "Network Flow Behavior Graph"
+        )
+
+    elif dataset == "PHISHING":
+
+        st.header(
+            "Domain Reputation Graph"
+        )
+
+    # =================================================
     # GRAPH
-    # ---------------------------------------------------
+    # =================================================
 
-    st.header(
-        "Attack Correlation Knowledge Graph"
-    )
+    graph_engine = GraphEngine()
 
-    graph_engine = GraphEngine(
+    graph_plot = graph_engine.build_graph(
 
         results["events"],
 
-        evidence
-    )
-
-    graph_plot = (
-        graph_engine.draw_graph()
+        dataset
     )
 
     st.pyplot(graph_plot)
 
-    # ---------------------------------------------------
-    # GRAPH LEGEND
-    # ---------------------------------------------------
-    st.markdown("#### Graph Legend")
-
-    dataset = profile["domain"]
-
     # =================================================
-    # CMU
+    # REPORT EXPORT
     # =================================================
-
-    if dataset == "Insider Threat Detection":
-
-        st.markdown("🔵 Users")
-        st.markdown("🟢 Enterprise Hosts")
-        st.markdown("🔴 High-Risk Hosts")
-
-    # =================================================
-    # CIC IDS
-    # =================================================
-
-    elif dataset == "Network Intrusion Detection":
-
-        st.markdown("🟠 Source IPs")
-        st.markdown("🟢 Destination IPs")
-        st.markdown("🔴 Botnet Activity")
-        st.markdown("🟣 DoS Indicators")
-
-    # =================================================
-    # PHISHING
-    # =================================================
-
-    elif dataset == "Email & Web Threat Detection":
-
-        st.markdown("🟡 URLs / Domains")
-        st.markdown("🔴 Malicious Domains")
-        st.markdown("🟢 Benign Domains")
-    
-
-    # ---------------------------------------------------
-    # REPORT DOWNLOAD
-    # ---------------------------------------------------
 
     st.header("Incident Report Export")
 
     report_generator = IncidentReporter()
 
     report_text = (
+
         report_generator.generate_report(
             results
         )
@@ -763,61 +555,45 @@ Security Operations Center (SOC).
 
         mime="text/plain",
 
-        use_container_width=True
+        use_container_width=True,
+
+        key="incident_report_download"
     )
 
     # =================================================
-    # SOC AI ANALYST
+    # CHATBOT
     # =================================================
 
     st.header("SOC AI Analyst")
 
-    from backend.llm.soc_chat_engine import (
-        SOCChatEngine
-    )
+    try:
 
-    # ---------------------------------------------
-    # CHAT ENGINE
-    # ---------------------------------------------
+        engine = SOCChatEngine(results)
 
-    engine = SOCChatEngine(
-        results
-    )
+    except Exception as e:
 
-    # ---------------------------------------------
-    # CHAT HISTORY
-    # ---------------------------------------------
+        st.error(
+
+            f"Failed to initialize assistant: {str(e)}"
+        )
+
+        engine = None
 
     if "chat_history" not in st.session_state:
 
         st.session_state.chat_history = []
 
-    # ---------------------------------------------
-    # DISPLAY CHAT HISTORY
-    # ---------------------------------------------
-
     for message in st.session_state.chat_history:
 
-        with st.chat_message(
+        with st.chat_message(message["role"]):
 
-            message["role"]
-        ):
-
-            st.markdown(
-                message["content"]
-            )
-
-    # ---------------------------------------------
-    # USER INPUT
-    # ---------------------------------------------
+            st.markdown(message["content"])
 
     prompt = st.chat_input(
         "Ask SOC Assistant"
     )
 
     if prompt:
-
-        # USER MESSAGE
 
         st.session_state.chat_history.append({
 
@@ -830,11 +606,21 @@ Security Operations Center (SOC).
 
             st.markdown(prompt)
 
-        # AI RESPONSE
+        if engine:
 
-        response = engine.process_query(
-            prompt
-        )
+            try:
+
+                response = engine.process_query(prompt)
+
+            except Exception as e:
+
+                response = str(e)
+
+        else:
+
+            response = (
+                "SOC Assistant unavailable."
+            )
 
         st.session_state.chat_history.append({
 
