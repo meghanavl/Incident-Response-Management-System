@@ -2,6 +2,20 @@ class CICEvidenceEngine:
 
     def extract(self, dataframe):
 
+        # -----------------------------------------
+        # CLEAN COLUMN NAMES
+        # -----------------------------------------
+
+        dataframe.columns = (
+
+            dataframe.columns
+            .str.strip()
+        )
+
+        # -----------------------------------------
+        # EVIDENCE OBJECT
+        # -----------------------------------------
+
         evidence = {
 
             "SuspiciousFlows": 0,
@@ -13,50 +27,77 @@ class CICEvidenceEngine:
             "InfiltrationAttempts": 0
         }
 
-        # -----------------------------------
-        # LONG FLOW DETECTION
-        # -----------------------------------
+        # -----------------------------------------
+        # NORMALIZE LABELS
+        # -----------------------------------------
 
-        if "Flow Duration" in dataframe.columns:
+        labels = dataframe["Label"] \
+            .astype(str) \
+            .str.lower()
 
-            suspicious = dataframe[
+        # -----------------------------------------
+        # DOS
+        # -----------------------------------------
 
-                dataframe["Flow Duration"] > 1000000
-            ]
+        evidence["PotentialDoS"] = int(
 
-            evidence["SuspiciousFlows"] = len(
-                suspicious
-            )
+            labels.str.contains(
+                "dos"
+            ).sum()
+        )
 
-        # -----------------------------------
-        # DOS DETECTION
-        # -----------------------------------
+        # -----------------------------------------
+        # BOTNET
+        # -----------------------------------------
 
-        if "Total Fwd Packets" in dataframe.columns:
+        evidence["BotnetActivity"] = int(
 
-            dos = dataframe[
+            labels.str.contains(
+                "bot"
+            ).sum()
+        )
 
-                dataframe["Total Fwd Packets"] > 1000
-            ]
-
-            evidence["PotentialDoS"] = len(
-                dos
-            )
-
-        # -----------------------------------
-        # BOTNET SIMULATION
-        # -----------------------------------
-
-        if evidence["PotentialDoS"] > 10:
-
-            evidence["BotnetActivity"] = 1
-
-        # -----------------------------------
+        # -----------------------------------------
         # INFILTRATION
-        # -----------------------------------
+        # -----------------------------------------
 
-        if evidence["SuspiciousFlows"] > 20:
+        evidence["InfiltrationAttempts"] = int(
 
-            evidence["InfiltrationAttempts"] = 1
+            labels.str.contains(
+                "infiltration"
+            ).sum()
+        )
+
+        # -----------------------------------------
+        # SUSPICIOUS FLOWS
+        # -----------------------------------------
+
+        suspicious_keywords = [
+
+            "attack",
+
+            "patator",
+
+            "dos",
+
+            "bot",
+
+            "infiltration"
+        ]
+
+        suspicious_count = 0
+
+        for keyword in suspicious_keywords:
+
+            suspicious_count += (
+
+                labels.str.contains(
+                    keyword
+                ).sum()
+            )
+
+        evidence["SuspiciousFlows"] = int(
+            suspicious_count
+        )
 
         return evidence

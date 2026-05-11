@@ -4,18 +4,6 @@ from data_pipeline.normalization.event_normalizer import (
     EventNormalizer
 )
 
-from backend.detections.auth_detector import (
-    AuthenticationDetector
-)
-
-from backend.detections.credential_abuse_detector import (
-    CredentialAbuseDetector
-)
-
-from backend.detections.lateral_movement_detector import (
-    LateralMovementDetector
-)
-
 from backend.analytics.severity_engine import (
     SeverityEngine
 )
@@ -44,6 +32,10 @@ from backend.intelligence.dataset_profiles import (
     DATASET_PROFILES
 )
 
+from backend.intelligence.network_ioc_engine import (
+    NetworkIOCEngine
+)
+
 from backend.evidence.cmu_evidence import (
     CMUEvidenceEngine
 )
@@ -70,7 +62,6 @@ class IncidentPipeline:
         # -----------------------------------
 
         profile = DATASET_PROFILES[
-
             self.dataset_name
         ]
 
@@ -92,13 +83,17 @@ class IncidentPipeline:
         normalizer = EventNormalizer()
 
         events = normalizer.normalize(
+
             raw_logs,
+
             self.dataset_name
         )
 
         # -----------------------------------
         # EVIDENCE EXTRACTION
         # -----------------------------------
+
+        network_iocs = {}
 
         if self.dataset_name == "CMU_CERT":
 
@@ -118,6 +113,17 @@ class IncidentPipeline:
                 .extract(raw_logs)
             )
 
+            # -----------------------------------
+            # NETWORK IOC EXTRACTION
+            # -----------------------------------
+
+            network_iocs = (
+
+                NetworkIOCEngine()
+
+                .extract(raw_logs)
+            )
+
         elif self.dataset_name == "PHISHING":
 
             evidence = (
@@ -131,7 +137,6 @@ class IncidentPipeline:
 
             evidence = {}
 
-        
         # -----------------------------------
         # BAYESIAN ANALYSIS
         # -----------------------------------
@@ -164,6 +169,7 @@ class IncidentPipeline:
         # -----------------------------------
 
         timeline = (
+
             TimelineEngine().build(
                 evidence
             )
@@ -176,6 +182,7 @@ class IncidentPipeline:
         recommendations = (
 
             RecommendationEngine()
+
             .generate(evidence)
         )
 
@@ -186,7 +193,11 @@ class IncidentPipeline:
         kill_chain = (
 
             KillChainMapper()
-            .map_phases(evidence, self.dataset_name)
+
+            .map_phases(
+                evidence,
+                self.dataset_name
+            )
         )
 
         # -----------------------------------
@@ -223,7 +234,8 @@ class IncidentPipeline:
             "scores":
             severity_data["scores"],
 
-            "timeline": timeline,
+            "timeline":
+            timeline,
 
             "recommendations":
             recommendations,
@@ -235,5 +247,8 @@ class IncidentPipeline:
             attack_mapping,
 
             "bayesian_analysis":
-            bayesian_analysis
+            bayesian_analysis,
+
+            "network_iocs":
+            network_iocs
         }

@@ -508,16 +508,110 @@ Security Operations Center (SOC).
         # ENDPOINT RISK
         # ------------------------------------------------
 
-        st.header("Endpoint Risk Activity")
+        st.subheader(
+            "Top Risk Endpoints"
+        )
 
-        for host in evidence.get(
+        high_risk_hosts = evidence.get(
             "HighRiskHosts",
             []
-        ):
+        )
 
-            st.warning(
-                f"{host} observed in suspicious activity"
+        if len(high_risk_hosts) == 0:
+
+            st.success(
+                "No critical endpoints identified."
             )
+
+        else:
+
+            top_hosts = high_risk_hosts[:5]
+
+            for host in top_hosts:
+
+                st.error(
+                    f"{host} → HIGH RISK HOST"
+                )
+    # =====================================================
+    # NETWORK IOC ANALYSIS
+    # =====================================================
+
+    if results["dataset_profile"]["domain"] == "Network Intrusion Detection":
+
+        st.header(
+            "Network Threat Intelligence"
+        )
+
+        iocs = results.get(
+            "network_iocs",
+            {}
+        )
+
+        col1, col2 = st.columns(2)
+
+        # -----------------------------------
+        # SOURCE IPS
+        # -----------------------------------
+
+        with col1:
+
+            st.subheader(
+                "Top Source IP Activity"
+            )
+
+            st.json(
+                iocs.get(
+                    "TopSourceIPs",
+                    {}
+                )
+            )
+
+        # -----------------------------------
+        # DESTINATION PORTS
+        # -----------------------------------
+
+        with col2:
+
+            st.subheader(
+                "Top Targeted Ports"
+            )
+
+            st.json(
+                iocs.get(
+                    "TopDestinationPorts",
+                    {}
+                )
+            )
+
+        # -----------------------------------
+        # PROTOCOLS
+        # -----------------------------------
+
+        st.subheader(
+            "Protocol Distribution"
+        )
+
+        st.json(
+            iocs.get(
+                "ProtocolUsage",
+                {}
+            )
+        )
+
+        # -----------------------------------
+        # ATTACK LABELS
+        # -----------------------------------
+
+        st.subheader(
+            "Observed Attack Categories"
+        )
+
+        st.json(
+            iocs.get(
+                "AttackLabels",
+                {}
+            )
+        )
 
     # ---------------------------------------------------
     # TIMELINE
@@ -672,28 +766,83 @@ Security Operations Center (SOC).
         use_container_width=True
     )
 
-    # ---------------------------------------------------
+    # =================================================
     # SOC AI ANALYST
-    # ---------------------------------------------------
+    # =================================================
 
     st.header("SOC AI Analyst")
 
-    user_query = st.chat_input(
+    from backend.llm.soc_chat_engine import (
+        SOCChatEngine
+    )
+
+    # ---------------------------------------------
+    # CHAT ENGINE
+    # ---------------------------------------------
+
+    engine = SOCChatEngine(
+        results
+    )
+
+    # ---------------------------------------------
+    # CHAT HISTORY
+    # ---------------------------------------------
+
+    if "chat_history" not in st.session_state:
+
+        st.session_state.chat_history = []
+
+    # ---------------------------------------------
+    # DISPLAY CHAT HISTORY
+    # ---------------------------------------------
+
+    for message in st.session_state.chat_history:
+
+        with st.chat_message(
+
+            message["role"]
+        ):
+
+            st.markdown(
+                message["content"]
+            )
+
+    # ---------------------------------------------
+    # USER INPUT
+    # ---------------------------------------------
+
+    prompt = st.chat_input(
         "Ask SOC Assistant"
     )
 
-    if user_query:
+    if prompt:
 
-        engine = SOCChatEngine(evidence)
+        # USER MESSAGE
 
-        with st.spinner(
-            "Analyzing incident..."
-        ):
+        st.session_state.chat_history.append({
 
-            response = (
-                engine.process_query(
-                    user_query
-                )
-            )
+            "role": "user",
 
-        st.write(response)
+            "content": prompt
+        })
+
+        with st.chat_message("user"):
+
+            st.markdown(prompt)
+
+        # AI RESPONSE
+
+        response = engine.process_query(
+            prompt
+        )
+
+        st.session_state.chat_history.append({
+
+            "role": "assistant",
+
+            "content": response
+        })
+
+        with st.chat_message("assistant"):
+
+            st.markdown(response)

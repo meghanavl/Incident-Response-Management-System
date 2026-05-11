@@ -12,7 +12,9 @@ class SOCChatEngine:
 
         self.results = results
 
-        self.evidence = results["evidence"]
+        self.evidence = results[
+            "evidence"
+        ]
 
         self.profile = results[
             "dataset_profile"
@@ -34,62 +36,180 @@ class SOCChatEngine:
             "severity"
         ]
 
+        self.ueba = results.get(
+            "ueba",
+            {}
+        )
+
+        self.timelines = results.get(
+            "user_timelines",
+            {}
+        )
+
     # =================================================
-    # BUILD CONTEXT
+    # QUERY ROUTER
     # =================================================
 
-    def build_context(self):
+    def retrieve_context(
 
-        return f"""
-You are an expert SOC analyst.
+        self,
 
-You are analyzing cybersecurity telemetry.
+        query
+    ):
+
+        query = query.lower()
+
+        context = ""
+
+        # ---------------------------------------------
+        # SUMMARY
+        # ---------------------------------------------
+
+        if "summary" in query:
+
+            context += f"""
+
+SEVERITY:
+{self.severity}
+
+THREAT PROBABILITY:
+{self.bayesian["probability"]}%
+
+THREAT CONFIDENCE:
+{self.bayesian["label"]}
+"""
+
+        # ---------------------------------------------
+        # MITRE
+        # ---------------------------------------------
+
+        elif "mitre" in query \
+        or "attack" in query:
+
+            context += f"""
+
+MITRE ATT&CK TECHNIQUES:
+{self.attack_mapping}
+"""
+
+        # ---------------------------------------------
+        # KILL CHAIN
+        # ---------------------------------------------
+
+        elif "kill chain" in query \
+        or "phase" in query:
+
+            context += f"""
+
+KILL CHAIN PHASES:
+{self.kill_chain}
+"""
+
+        # ---------------------------------------------
+        # UEBA
+        # ---------------------------------------------
+
+        elif "ueba" in query \
+        or "user" in query \
+        or "risk" in query:
+
+            context += f"""
+
+USER BEHAVIOR ANALYTICS:
+{self.ueba}
+"""
+
+        # ---------------------------------------------
+        # TIMELINES
+        # ---------------------------------------------
+
+        elif "timeline" in query:
+
+            context += f"""
+
+USER TIMELINES:
+{self.timelines}
+"""
+
+        # ---------------------------------------------
+        # EVIDENCE
+        # ---------------------------------------------
+
+        elif "evidence" in query \
+        or "suspicious" in query:
+
+            context += f"""
+
+SECURITY EVIDENCE:
+{self.evidence}
+"""
+
+        # ---------------------------------------------
+        # SEVERITY
+        # ---------------------------------------------
+
+        elif "severity" in query:
+
+            context += f"""
+
+SEVERITY:
+{self.severity}
+
+THREAT PROBABILITY:
+{self.bayesian}
+"""
+
+        # ---------------------------------------------
+        # DEFAULT
+        # ---------------------------------------------
+
+        else:
+
+            context += f"""
 
 DATASET DOMAIN:
 {self.profile["domain"]}
 
-DATASET DESCRIPTION:
-{self.profile["description"]}
-
-THREAT SEVERITY:
+SEVERITY:
 {self.severity}
 
-SECURITY EVIDENCE:
-{self.evidence}
-
-BAYESIAN THREAT ANALYSIS:
-{self.bayesian}
-
-MITRE ATT&CK MAPPING:
-{self.attack_mapping}
-
-CYBER KILL CHAIN PHASES:
-{self.kill_chain}
-
-YOUR RESPONSIBILITIES:
-
-- Analyze attacker behavior
-- Explain security findings
-- Explain probable attacker objectives
-- Explain incident severity
-- Reference MITRE ATT&CK techniques
-- Reference kill chain phases
-- Recommend incident response actions
-- Answer like a SOC analyst
-
-RESPONSE RULES:
-
-- Maximum 5 bullet points
-- Concise operational language
-- NO large paragraphs
-- NO generic AI assistant phrasing
-- Focus on actionable insights
-- Reference the dataset domain when relevant
-- Base conclusions ONLY on provided telemetry
+THREAT PROBABILITY:
+{self.bayesian["probability"]}%
 """
 
+        return context
+
     # =================================================
-    # QUERY PROCESSING
+    # QUICK RESPONSES
+    # =================================================
+
+    def quick_response(
+
+        self,
+
+        query
+    ):
+
+        query = query.lower().strip()
+
+        greetings = [
+
+            "hi",
+            "hello",
+            "hey"
+        ]
+
+        if query in greetings:
+
+            return (
+                f"SOC AI Assistant active for "
+                f"{self.profile['domain']} telemetry."
+            )
+
+        return None
+
+    # =================================================
+    # MAIN PROCESSING
     # =================================================
 
     def process_query(
@@ -100,29 +220,70 @@ RESPONSE RULES:
     ):
 
         # ---------------------------------------------
-        # GREETING HANDLER
+        # QUICK RESPONSE
         # ---------------------------------------------
 
-        greetings = [
+        fast = self.quick_response(
+            user_query
+        )
 
-            "hi",
-            "hello",
-            "hey",
-            "good morning",
-            "good evening"
-        ]
+        if fast:
 
-        if user_query.lower().strip() in greetings:
+            return fast
 
-            return (
-                f"Hello. SOC AI Assistant active for "
-                f"{self.profile['domain']} telemetry. "
-                f"Ask about threats, ATT&CK mapping, "
-                f"severity analysis, or response actions."
+        # ---------------------------------------------
+        # RETRIEVED CONTEXT
+        # ---------------------------------------------
+
+        retrieved_context = (
+
+            self.retrieve_context(
+                user_query
             )
+        )
 
         # ---------------------------------------------
-        # OLLAMA RESPONSE
+        # SYSTEM PROMPT
+        # ---------------------------------------------
+
+        system_prompt = f"""
+        You are a SOC analyst assistant.
+
+        DATASET DOMAIN:
+        {self.profile["domain"]}
+
+        RETRIEVED CONTEXT:
+        {retrieved_context}
+
+        STRICT RESPONSE RULES:
+
+        - MAXIMUM 4 bullet points
+        - EACH bullet MAXIMUM 12 words
+        - NO paragraphs
+        - NO explanations
+        - NO introductions
+        - NO conclusions
+        - NO markdown headings
+        - NO long sentences
+        - Use short SOC alert language
+        - Mention MITRE IDs only if relevant
+        - Mention severity only if relevant
+        - Mention actions briefly
+
+        GOOD RESPONSE EXAMPLE:
+
+        • Suspicious logons exceeded enterprise baseline.
+        • Credential abuse indicators detected.
+        • MITRE T1078 Valid Accounts observed.
+        • Isolate affected endpoints immediately.
+
+        BAD RESPONSE EXAMPLE:
+
+        "This incident indicates a potentially serious compromise..."
+        """
+
+        # ---------------------------------------------
+        # OLLAMA
         # ---------------------------------------------
 
         response = ollama.chat(
@@ -135,7 +296,7 @@ RESPONSE RULES:
                     "role": "system",
 
                     "content":
-                    self.build_context()
+                    system_prompt
                 },
 
                 {
