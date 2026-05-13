@@ -1,283 +1,185 @@
-# AI-Assisted SOC Incident Response Platform
+# Incident Response Decision Support System (IRDSS)
 
-An intelligent Security Operations Center (SOC) simulation platform built using:
+A cybersecurity-focused incident analysis platform designed to assist security analysts in identifying, investigating, and understanding suspicious user activity using log analysis, behavioral indicators, visual analytics, and LLM-assisted investigation support.
 
-- Streamlit
-- Ollama LLM
-- CMU CERT Insider Threat Dataset
-- Dynamic Threat Analytics
-- Knowledge Graph Visualization
-
-This project simulates real-world SOC incident investigation workflows using enterprise security telemetry data.
+This project uses the CMU CERT Insider Threat Dataset to simulate security monitoring and incident investigation workflows commonly seen in SOC (Security Operations Center) environments.
 
 ---
 
 # Features
 
-## Real CERT Insider Threat Dataset
+## Log & Event Analysis
 
-Uses the:
+* Parses and processes user activity logs
+* Identifies potentially suspicious events using predefined behavioral rules
+* Supports filtering and exploration of security-related activity
 
-### CMU CERT Insider Threat Dataset (r1)
+## Risk Scoring
 
-The platform processes enterprise telemetry logs including:
+* Assigns a severity/risk score to users or events based on observed indicators
+* Combines multiple behavioral factors such as:
 
-- User logons/logoffs
-- Endpoint activity
-- Host access behavior
-- Authentication events
-- Insider threat indicators
+  * unusual login times
+  * excessive device usage
+  * abnormal access patterns
+  * suspicious file activity
 
-Dataset source:
-https://kilthub.cmu.edu/articles/dataset/Insider_Threat_Test_Dataset/12841247
+## UEBA-Inspired Monitoring
 
----
+Implements simplified User and Entity Behavior Analytics (UEBA)-style checks by highlighting deviations from expected activity patterns.
 
-# SOC Features
+Examples include:
 
-## Live SOC Threat Feed
+* after-hours access
+* unusually frequent activity
+* access from multiple systems
+* sudden spikes in file operations
 
-Streams real log activity from the CERT dataset in SOC-style format.
+> Note: This project uses heuristic/rule-based behavioral analysis and is not a production-grade UEBA system.
 
-Example:
+## Incident Timeline Reconstruction
 
-```text
-11/10/2010 13:53:46 | USER=DTAA/PKH0542 | HOST=PC-2052 | EVENT=Logon
-```
+* Organizes suspicious events into chronological timelines
+* Helps visualize how an incident progressed over time
+* Assists with investigation and reporting
 
----
+## Knowledge Graph Visualization
 
-## Dynamic Evidence Extraction
+* Displays relationships between:
 
-Automatically extracts:
+  * users
+  * devices
+  * actions
+  * events
+* Helps analysts understand connections between suspicious activities
 
-- Suspicious logons
-- After-hours authentication
-- Credential abuse indicators
-- Lateral movement indicators
-- High-risk hosts
-- User activity patterns
+## Interactive Dashboard
 
----
+Built using Streamlit for:
 
-## Threat Confidence Scores
+* incident monitoring
+* analytics visualization
+* investigation workflows
+* risk exploration
 
-Calculates dynamic threat probabilities for:
+## LLM-Assisted Investigation Support
 
-- Abnormal Authentication
-- Credential Abuse
-- Lateral Movement
+Integrates local LLMs through Ollama to:
 
-Displayed using interactive Streamlit progress bars.
+* summarize suspicious activity
+* generate investigation insights
+* assist analysts during incident review
 
----
-
-## Incident Severity Detection
-
-Automatically classifies incidents into:
-
-- MEDIUM
-- HIGH
-- CRITICAL
-
-based on detected threat indicators.
-
----
-
-## User & Entity Behavior Analytics (UEBA)
-
-Tracks:
-
-- Unique users
-- Endpoint activity
-- Suspicious hosts
-- Authentication anomalies
-
----
-
-## Endpoint Risk Activity
-
-Highlights high-risk systems dynamically identified from suspicious activity patterns.
-
----
-
-## Attack Timeline Reconstruction
-
-Builds an attack sequence timeline from detected events such as:
-
-- After-hours logins
-- Credential abuse attempts
-- Lateral movement indicators
-
----
-
-## Cyber Kill Chain Analysis
-
-Maps detected attack behavior to Cyber Kill Chain phases:
-
-- Reconnaissance
-- Weaponization
-- Delivery
-- Exploitation
-- Installation
-- Command & Control
-- Exfiltration
-
----
-
-## Dynamic Attack Correlation Knowledge Graph
-
-Generates a dynamic graph showing relationships between:
-
-- Users
-- Hosts
-- Suspicious endpoints
-- Authentication activity
-- Attack movement paths
-
-Built using:
-
-- NetworkX
-- Matplotlib
-
----
-
-## AI SOC Analyst (LLM)
-
-Integrated with:
-
-## Ollama
-
-Using local LLMs such as:
-
-- phi3:mini
-- tinyllama
-
-The assistant can:
-
-- Explain incidents
-- Summarize attacks
-- Recommend mitigations
-- Analyze suspicious activity
-- Answer SOC investigation questions
-
----
-
-## Automated Incident Report
-
-Generates downloadable SOC incident reports containing:
-
-- Threat evidence
-- Severity assessment
-- Timeline reconstruction
-- Risk indicators
-- Recommended response actions
+> The LLM component is used as an investigation assistant and does not autonomously detect threats.
 
 ---
 
 # Technologies Used
 
-- Python
-- Streamlit
-- Pandas
-- NetworkX
-- Matplotlib
-- Ollama
-- CMU CERT Dataset
+* Python
+* Streamlit
+* Pandas
+* Plotly
+* NetworkX
+* Ollama
+* Local LLMs (Llama 3 / Phi-3 / TinyLlama)
 
 ---
 
-# Project Structure
+# Dataset
 
-```text
-project/
-│
-├── app.py
-├── requirements.txt
-│
-├── chatbot/
-│   └── soc_chat_engine.py
-│
-├── evidence_collection/
-│   └── log_parser.py
-│
-├── data/
-│   └── logon.csv
-│
-├── knowledge_graph/
-│   └── attack_graph.py
-│
-└── Bayesian_model/
-    └── risk_model.py
-```
+This project uses the:
+
+**CMU CERT Insider Threat Dataset**
+
+The dataset simulates realistic enterprise user activity including:
+
+* logins
+* device usage
+* file access
+* email activity
+* web activity
+
+Dataset source:
+
+[CERT Insider Threat Test Dataset](https://resources.sei.cmu.edu/library/asset-view.cfm?assetid=508099&utm_source=chatgpt.com)
+
+---
+
+# Project Goals
+
+The primary goals of this project are to:
+
+* simulate SOC-style incident investigation workflows
+* explore insider threat detection concepts
+* practice cybersecurity analytics and visualization
+* experiment with LLM-assisted security analysis
+* build a practical cybersecurity portfolio project
+
+---
+
+# Current Limitations
+
+This project is intended for educational and research purposes and has several limitations:
+
+* Detection logic is primarily heuristic/rule-based
+* Does not use advanced machine learning detection models
+* Not designed for production SOC deployment
+* Limited real-time monitoring capabilities
+* LLM responses may occasionally generate inaccurate explanations
+
+---
+
+# Future Improvements
+
+Potential future enhancements include:
+
+* MITRE ATT&CK technique mapping
+* anomaly detection models
+* improved behavioral baselining
+* real-time event streaming
+* automated alert prioritization
+* stronger incident correlation logic
+* analyst feedback loops
 
 ---
 
 # Installation
 
-## 1. Clone Project
+## Clone the Repository
 
 ```bash
-git clone <repo-url>
-cd project
+git clone <repository-url>
+cd Incident-Response-Decision-Support-System
 ```
 
----
-
-## 2. Install Python Dependencies
+## Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
----
+## Run Ollama (Optional for LLM Features)
 
-## 3. Install Ollama
+Install Ollama:
 
-Download:
-https://ollama.com/download
+[Ollama Official Website](https://ollama.com?utm_source=chatgpt.com)
 
-Verify installation:
-
-```bash
-ollama --version
-```
-
----
-
-## 4. Pull LLM Model
-
-Example:
+Run a local model:
 
 ```bash
-ollama pull phi3:mini
+ollama run llama3
 ```
 
 or
 
 ```bash
-ollama pull tinyllama
+ollama run phi3
 ```
 
 ---
 
-# Running the Project
-
-## Step 1 — Start Ollama
-
-Open terminal:
-
-```bash
-ollama run phi3:mini
-```
-
-Keep this terminal running.
-
----
-
-## Step 2 — Run Streamlit App
-
-Open another terminal:
+# Running the Application
 
 ```bash
 streamlit run app.py
@@ -285,66 +187,18 @@ streamlit run app.py
 
 ---
 
-# Dataset Setup
+# Example Use Cases
 
-Download:
-
-## CERT r1 dataset
-
-Extract:
-
-```text
-r1.tar.bz2
-```
-
-Place:
-
-```text
-logon.csv
-```
-
-inside:
-
-```text
-data/logon.csv
-```
+* Insider threat investigation simulation
+* SOC analyst workflow demonstration
+* Cybersecurity academic project
+* Security analytics experimentation
+* Behavioral log analysis practice
 
 ---
 
-# Current Dynamic Features
+# Disclaimer
 
-The following are dynamically generated from live sampled dataset logs:
+This project is developed for educational and research purposes only.
 
-- Threat evidence
-- Attack timeline
-- Threat attribution
-- UEBA metrics
-- Severity scoring
-- Knowledge graph
-- High-risk hosts
-- Recommended mitigations
-
----
-
-# Hardcoded Components
-
-Minimal static logic still exists for:
-
-- Severity thresholds
-- Cyber Kill Chain phase labels
-- Some mitigation templates
-
-Most analytics are dynamically derived from dataset behavior.
-
----
-
-# Future Improvements
-
-- Real SIEM integration
-- Neo4j graph database
-- MITRE ATT&CK technique mapping
-- Real-time packet analysis
-- Multi-agent SOC orchestration
-- Threat intelligence enrichment
-- PDF incident export
-- Real-time alert streaming
+It is not intended to replace enterprise SIEM, UEBA, EDR, or incident response platforms.
