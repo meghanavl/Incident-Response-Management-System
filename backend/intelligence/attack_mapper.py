@@ -1,238 +1,344 @@
 class AttackMapper:
 
     def map_attack_techniques(
-
         self,
-
+        events,
         evidence,
-
         dataset_name
     ):
 
         techniques = []
 
-        # =================================================
+        # =========================================
         # CMU CERT
-        # =================================================
+        # =========================================
 
         if dataset_name == "CMU_CERT":
 
-            # ---------------------------------------------
-            # VALID ACCOUNTS
-            # ---------------------------------------------
+            user_hosts = {}
 
-            if evidence.get(
-                "CredentialAbuse",
-                0
-            ):
+            for event in events:
 
-                techniques.append({
+                activity = (
+                    event.activity or ""
+                ).lower()
 
-                    "technique":
-                    "T1078",
+                user = (
+                    event.user or "UNKNOWN"
+                )
 
-                    "name":
-                    "Valid Accounts",
+                host = (
+                    event.host or "UNKNOWN"
+                )
 
-                    "tactic":
-                    "Defense Evasion"
-                })
+                # =================================
+                # VALID ACCOUNTS
+                # =================================
 
-            # ---------------------------------------------
+                if (
+                    "admin" in activity
+                    or evidence.get(
+                        "CredentialAbuse",
+                        0
+                    )
+                ):
+
+                    techniques.append({
+
+                        "technique":
+                        "T1078",
+
+                        "name":
+                        "Valid Accounts",
+
+                        "tactic":
+                        "Defense Evasion"
+                    })
+
+                # =================================
+                # EXFILTRATION
+                # =================================
+
+                if (
+                    "usb" in activity
+                    or "copy" in activity
+                    or "download" in activity
+                ):
+
+                    techniques.append({
+
+                        "technique":
+                        "T1052",
+
+                        "name":
+                        "Exfiltration Over Physical Medium",
+
+                        "tactic":
+                        "Exfiltration"
+                    })
+
+                # =================================
+                # ACCOUNT DISCOVERY
+                # =================================
+
+                if "logon" in activity:
+
+                    techniques.append({
+
+                        "technique":
+                        "T1087",
+
+                        "name":
+                        "Account Discovery",
+
+                        "tactic":
+                        "Discovery"
+                    })
+
+                # =================================
+                # HOST TRACKING
+                # =================================
+
+                if user not in user_hosts:
+
+                    user_hosts[user] = set()
+
+                user_hosts[user].add(host)
+
+            # =====================================
             # LATERAL MOVEMENT
-            # ---------------------------------------------
+            # =====================================
 
-            if evidence.get(
-                "LateralMovement",
-                0
-            ) > 0:
+            for user, hosts in user_hosts.items():
 
-                techniques.append({
+                if len(hosts) >= 3:
 
-                    "technique":
-                    "T1021",
+                    techniques.append({
 
-                    "name":
-                    "Remote Services",
+                        "technique":
+                        "T1021",
 
-                    "tactic":
-                    "Lateral Movement"
-                })
+                        "name":
+                        "Remote Services",
 
-            # ---------------------------------------------
-            # ACCOUNT DISCOVERY
-            # ---------------------------------------------
+                        "tactic":
+                        "Lateral Movement"
+                    })
 
-            if evidence.get(
-                "SuspiciousLogons",
-                0
-            ) > 10:
-
-                techniques.append({
-
-                    "technique":
-                    "T1087",
-
-                    "name":
-                    "Account Discovery",
-
-                    "tactic":
-                    "Discovery"
-                })
-
-        # =================================================
+        # =========================================
         # CIC IDS2017
-        # =================================================
+        # =========================================
 
         elif dataset_name == "CIC_IDS2017":
 
-            # ---------------------------------------------
-            # NETWORK DOS
-            # ---------------------------------------------
+            for event in events:
 
-            if evidence.get(
-                "PotentialDoS",
-                0
-            ) > 0:
+                label = (
+                    event.activity or ""
+                ).lower()
 
-                techniques.append({
+                # =================================
+                # DOS
+                # =================================
 
-                    "technique":
-                    "T1498",
+                if "dos" in label:
 
-                    "name":
-                    "Network Denial of Service",
+                    techniques.append({
 
-                    "tactic":
-                    "Impact"
-                })
+                        "technique":
+                        "T1498",
 
-            # ---------------------------------------------
-            # COMMAND & CONTROL
-            # ---------------------------------------------
+                        "name":
+                        "Network Denial of Service",
 
-            if evidence.get(
-                "BotnetActivity",
-                0
-            ):
+                        "tactic":
+                        "Impact"
+                    })
 
-                techniques.append({
+                # =================================
+                # BOTNET
+                # =================================
 
-                    "technique":
-                    "T1071",
+                if "bot" in label:
 
-                    "name":
-                    "Application Layer Protocol",
+                    techniques.append({
 
-                    "tactic":
-                    "Command and Control"
-                })
+                        "technique":
+                        "T1071",
 
-            # ---------------------------------------------
-            # EXPLOIT PUBLIC-FACING APP
-            # ---------------------------------------------
+                        "name":
+                        "Application Layer Protocol",
 
-            if evidence.get(
-                "InfiltrationAttempts",
-                0
-            ):
+                        "tactic":
+                        "Command and Control"
+                    })
 
-                techniques.append({
+                # =================================
+                # INFILTRATION
+                # =================================
 
-                    "technique":
-                    "T1190",
+                if "infiltration" in label:
 
-                    "name":
-                    "Exploit Public-Facing Application",
+                    techniques.append({
 
-                    "tactic":
-                    "Initial Access"
-                })
+                        "technique":
+                        "T1190",
 
-        # =================================================
+                        "name":
+                        "Exploit Public-Facing Application",
+
+                        "tactic":
+                        "Initial Access"
+                    })
+
+                # =================================
+                # BRUTE FORCE
+                # =================================
+
+                if (
+                    "ssh-patator" in label
+                    or "ftp-patator" in label
+                    or "brute" in label
+                ):
+
+                    techniques.append({
+
+                        "technique":
+                        "T1110",
+
+                        "name":
+                        "Brute Force",
+
+                        "tactic":
+                        "Credential Access"
+                    })
+
+                # =================================
+                # PORT SCANNING
+                # =================================
+
+                if "portscan" in label:
+
+                    techniques.append({
+
+                        "technique":
+                        "T1046",
+
+                        "name":
+                        "Network Service Discovery",
+
+                        "tactic":
+                        "Discovery"
+                    })
+
+        # =========================================
         # PHISHING
-        # =================================================
+        # =========================================
 
         elif dataset_name == "PHISHING":
 
-            # ---------------------------------------------
-            # SPEARPHISHING LINK
-            # ---------------------------------------------
+            for event in events:
 
-            if evidence.get(
-                "MaliciousURLs",
-                0
-            ) > 5:
+                url = (
+                    event.url or ""
+                ).lower()
 
-                techniques.append({
+                label = (
+                    event.label or ""
+                ).lower()
 
-                    "technique":
-                    "T1566.002",
+                # =================================
+                # SPEARPHISHING
+                # =================================
 
-                    "name":
-                    "Spearphishing Link",
+                if label == "bad":
 
-                    "tactic":
-                    "Initial Access"
-                })
+                    techniques.append({
 
-            # ---------------------------------------------
-            # INPUT CAPTURE
-            # ---------------------------------------------
+                        "technique":
+                        "T1566.002",
 
-            if evidence.get(
-                "CredentialHarvesting",
-                0
-            ):
+                        "name":
+                        "Spearphishing Link",
 
-                techniques.append({
+                        "tactic":
+                        "Initial Access"
+                    })
 
-                    "technique":
-                    "T1056",
+                # =================================
+                # CREDENTIAL HARVESTING
+                # =================================
 
-                    "name":
-                    "Input Capture",
+                suspicious_keywords = [
+                    "login",
+                    "verify",
+                    "secure",
+                    "account",
+                    "update"
+                ]
 
-                    "tactic":
-                    "Credential Access"
-                })
+                if any(
+                    keyword in url
+                    for keyword in suspicious_keywords
+                ):
 
-            # ---------------------------------------------
-            # MASQUERADING
-            # ---------------------------------------------
+                    techniques.append({
 
-            if evidence.get(
-                "SuspiciousDomains",
-                0
-            ) > 10:
+                        "technique":
+                        "T1056",
 
-                techniques.append({
+                        "name":
+                        "Input Capture",
 
-                    "technique":
-                    "T1036",
+                        "tactic":
+                        "Credential Access"
+                    })
 
-                    "name":
-                    "Masquerading",
+                # =================================
+                # MASQUERADING
+                # =================================
 
-                    "tactic":
-                    "Defense Evasion"
-                })
+                spoof_keywords = [
+                    "paypal",
+                    "microsoft",
+                    "skype",
+                    "bank"
+                ]
 
-        # =================================================
+                if any(
+                    keyword in url
+                    for keyword in spoof_keywords
+                ):
+
+                    techniques.append({
+
+                        "technique":
+                        "T1036",
+
+                        "name":
+                        "Masquerading",
+
+                        "tactic":
+                        "Defense Evasion"
+                    })
+
+        # =========================================
         # REMOVE DUPLICATES
-        # =================================================
+        # =========================================
 
         unique = []
 
         seen = set()
 
-        for t in techniques:
+        for technique in techniques:
 
-            key = t["technique"]
+            key = technique["technique"]
 
             if key not in seen:
 
-                unique.append(t)
+                unique.append(
+                    technique
+                )
 
                 seen.add(key)
 

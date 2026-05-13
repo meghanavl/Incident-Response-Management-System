@@ -63,7 +63,9 @@ def render_dashboard(results):
 
     profile = results["dataset_profile"]
 
-    dataset = profile["name"]
+    events = results["events"]
+
+    dataset = events[0].dataset_type
 
     domain = profile["domain"]
 
@@ -96,121 +98,61 @@ for incident detection and response.
 
     events = results["events"][:15]
 
-    # =================================================
-    # COLORS
-    # =================================================
-
     severity_colors = {
 
         "ALERT": "#ff2e63",
-
         "HIGH": "#ff6b35",
-
         "MEDIUM": "#f7b801",
-
         "INFO": "#00d084"
     }
 
-    # =================================================
-    # EVENT STREAM
-    # =================================================
-
     for index, event in enumerate(events):
 
-        # =============================================
+        # =================================================
         # CMU CERT
-        # REAL TIMESTAMPS EXIST
-        # =============================================
+        # =================================================
 
-        if profile["name"] == "CMU_CERT":
+        if dataset == "CMU_CERT":
 
-            timestamp = (
-                event.timestamp
-                if event.timestamp
-                else f"EVENT-{index}"
-            )
+            timestamp = event.timestamp or "UNKNOWN_TIME"
 
-            activity = (
-                str(event.activity)
-                if event.activity
-                else "Unknown Activity"
-            )
+            user = event.user or "UNKNOWN_USER"
 
-            user = (
-                event.user
-                if event.user
-                else "UNKNOWN_USER"
-            )
+            host = event.host or "UNKNOWN_HOST"
 
-            host = (
-                event.host
-                if event.host
-                else "UNKNOWN_HOST"
-            )
+            activity = event.activity or "UNKNOWN_ACTIVITY"
 
-            # -----------------------------------------
-            # SEVERITY
-            # -----------------------------------------
+            severity = "HIGH" if "logon" in activity.lower() else "INFO"
 
-            if "logon" in activity.lower():
-
-                severity = "HIGH"
-
-            elif "device" in activity.lower():
-
-                severity = "MEDIUM"
-
-            else:
-
-                severity = "INFO"
-
-            # -----------------------------------------
-            # MESSAGE
-            # -----------------------------------------
+            prefix = f"[{timestamp}]"
 
             message = (
-
                 f"USER={user} | "
                 f"HOST={host} | "
                 f"ACTIVITY={activity}"
             )
 
-            prefix = f"[{timestamp}]"
-
-        # =============================================
+        # =================================================
         # CIC IDS2017
-        # NO REAL TIMESTAMPS
-        # =============================================
+        # =================================================
 
-        elif profile["name"] == "CIC_IDS2017":
+        elif dataset == "CIC_IDS2017":
 
             flow_id = f"FLOW-{index+1:03}"
 
-            protocol = (
-                event.protocol
-                if event.protocol
-                else "UNKNOWN"
-            )
+            src_ip = event.src_ip or "N/A"
 
-            activity = (
-                event.activity
-                if event.activity
-                else "Unknown Traffic"
-            )
+            dst_ip = event.dst_ip or "N/A"
 
-            # -----------------------------------------
-            # SEVERITY
-            # -----------------------------------------
+            protocol = event.protocol or "UNKNOWN"
 
-            if "infiltration" in str(
-                activity
-            ).lower():
+            activity = event.activity or "UNKNOWN"
+
+            if "infiltration" in activity.lower():
 
                 severity = "ALERT"
 
-            elif "benign" in str(
-                activity
-            ).lower():
+            elif "benign" in activity.lower():
 
                 severity = "INFO"
 
@@ -218,66 +160,39 @@ for incident detection and response.
 
                 severity = "MEDIUM"
 
-            # -----------------------------------------
-            # MESSAGE
-            # -----------------------------------------
-
-            message = (
-
-                f"PORT={protocol} | "
-                f"EVENT={activity}"
-            )
-
             prefix = f"[{flow_id}]"
 
-        # =============================================
-        # PHISHING
-        # NO REAL TIMESTAMPS
-        # =============================================
+            message = (
+                f"SRC={src_ip} | "
+                f"DST={dst_ip} | "
+                f"PORT={protocol} | "
+                f"LABEL={activity}"
+            )
 
-        elif profile["name"] == "PHISHING":
+        # =================================================
+        # PHISHING
+        # =================================================
+
+        elif dataset == "PHISHING":
 
             url_id = f"URL-{index+1:03}"
 
-            url = (
-                event.url[:60]
-                if event.url
-                else "unknown-url"
-            )
+            url = event.url or "UNKNOWN_URL"
 
-            label = (
-                event.label
-                if event.label
-                else "unknown"
-            )
+            label = event.label or "UNKNOWN"
 
-            # -----------------------------------------
-            # SEVERITY
-            # -----------------------------------------
-
-            if str(label).lower() == "bad":
-
-                severity = "ALERT"
-
-            else:
-
-                severity = "INFO"
-
-            # -----------------------------------------
-            # MESSAGE
-            # -----------------------------------------
-
-            message = (
-
-                f"DOMAIN={url} | "
-                f"LABEL={label}"
-            )
+            severity = "ALERT" if label.lower() == "bad" else "INFO"
 
             prefix = f"[{url_id}]"
 
-        # =============================================
+            message = (
+                f"URL={url[:70]} | "
+                f"LABEL={label}"
+            )
+
+        # =================================================
         # FALLBACK
-        # =============================================
+        # =================================================
 
         else:
 
@@ -285,22 +200,12 @@ for incident detection and response.
 
             prefix = f"[EVENT-{index}]"
 
-            message = str(event)
-
-        # =============================================
-        # COLOR
-        # =============================================
+            message = "Unknown event format"
 
         color = severity_colors.get(
-
             severity,
-
             "#00d084"
         )
-
-        # =============================================
-        # TERMINAL STYLE FEED
-        # =============================================
 
         st.markdown(
 
@@ -339,6 +244,8 @@ for incident detection and response.
 
             unsafe_allow_html=True
         )
+
+
 
     # =================================================
     # THREAT SCORE
@@ -395,6 +302,75 @@ for incident detection and response.
     )
 
     st.progress(confidence / 100)
+
+    # =================================================
+    # UEBA
+    # =================================================
+
+    if dataset == "CMU_CERT":
+
+        st.header(
+            "User and Entity Behavior Analytics"
+        )
+
+        ueba = results.get(
+            "ueba_results",
+            {}
+        )
+
+        risk_score = ueba.get(
+            "ueba_risk_score",
+            0
+        )
+
+        st.metric(
+            "UEBA Insider Threat Score",
+            risk_score
+        )
+
+        st.progress(risk_score / 100)
+
+        suspicious_users = ueba.get(
+            "suspicious_users",
+            []
+        )
+
+        if suspicious_users:
+
+            st.subheader(
+                "Suspicious User Activity"
+            )
+
+            for user in suspicious_users:
+
+                st.error(
+                    f"{user['user']} | Risk Score: {user['risk_score']}"
+                )
+
+                st.markdown(
+                    f"Hosts Accessed: {user['hosts']}"
+                )
+                st.markdown(
+                    f"Total Events: {user['events']}"
+                )
+
+                st.markdown(
+                    "Detected Anomalies:"
+                )
+
+                for anomaly in user[
+                    "anomalies"
+                ]:
+
+                    st.warning(anomaly)
+
+                st.markdown("---")
+
+        else:
+
+            st.success(
+                "No suspicious UEBA behavior detected"
+            )
 
     # =================================================
     # CIC IDS

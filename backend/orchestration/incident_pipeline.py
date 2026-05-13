@@ -1,4 +1,5 @@
 from data_pipeline.ingestion.log_ingestor import LogIngestor
+import random
 
 from data_pipeline.normalization.event_normalizer import (
     EventNormalizer
@@ -48,6 +49,10 @@ from backend.evidence.phishing_evidence import (
     PhishingEvidenceEngine
 )
 
+from backend.analytics.ueba_engine import (
+    UEBAEngine
+)
+
 
 class IncidentPipeline:
 
@@ -90,6 +95,34 @@ class IncidentPipeline:
         )
 
         # -----------------------------------
+        # RANDOM INVESTIGATION SAMPLE
+        # -----------------------------------
+
+        sample_size = min(15, len(events))
+
+        active_events = random.sample(
+            events,
+            sample_size
+        )
+        # -----------------------------------
+        # ACTIVE INVESTIGATION EVENTS
+        # -----------------------------------
+
+        active_events = events[:15]
+        # -----------------------------------
+        # UEBA ANALYSIS
+        # -----------------------------------
+
+        ueba_results = {}
+
+        if self.dataset_name == "CMU_CERT":
+
+            ueba_results = (
+                UEBAEngine()
+                .analyze(active_events)
+            )
+
+        # -----------------------------------
         # EVIDENCE EXTRACTION
         # -----------------------------------
 
@@ -101,7 +134,7 @@ class IncidentPipeline:
 
                 CMUEvidenceEngine()
 
-                .extract(events)
+                .extract(active_events)
             )
 
         elif self.dataset_name == "CIC_IDS2017":
@@ -171,7 +204,9 @@ class IncidentPipeline:
         timeline = (
 
             TimelineEngine().build(
-                evidence
+                active_events,
+                evidence,
+                self.dataset_name
             )
         )
 
@@ -195,6 +230,7 @@ class IncidentPipeline:
             KillChainMapper()
 
             .map_phases(
+                active_events,
                 evidence,
                 self.dataset_name
             )
@@ -209,6 +245,7 @@ class IncidentPipeline:
             AttackMapper()
 
             .map_attack_techniques(
+                active_events,
                 evidence,
                 self.dataset_name
             )
@@ -220,7 +257,7 @@ class IncidentPipeline:
 
         return {
 
-            "events": events,
+            "events": active_events,
 
             "raw_logs": raw_logs,
 
@@ -250,5 +287,8 @@ class IncidentPipeline:
             bayesian_analysis,
 
             "network_iocs":
-            network_iocs
+            network_iocs,
+
+            "ueba_results":
+            ueba_results
         }

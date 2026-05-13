@@ -1,7 +1,6 @@
 import streamlit as st
 
 from backend.orchestration.incident_pipeline import IncidentPipeline
-
 from frontend.dashboard import render_dashboard
 from backend.intelligence.dataset_profiles import (
     DATASET_PROFILES

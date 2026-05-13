@@ -12,172 +12,78 @@ class SOCChatEngine:
 
         self.results = results
 
-        self.evidence = results[
-            "evidence"
-        ]
+        self.evidence = results.get(
+            "evidence",
+            {}
+        )
 
-        self.profile = results[
-            "dataset_profile"
-        ]
+        self.profile = results.get(
+            "dataset_profile",
+            {}
+        )
 
-        self.bayesian = results[
-            "bayesian_analysis"
-        ]
+        self.bayesian = results.get(
+            "bayesian_analysis",
+            {}
+        )
 
-        self.attack_mapping = results[
-            "attack_mapping"
-        ]
+        self.attack_mapping = results.get(
+            "attack_mapping",
+            []
+        )
 
-        self.kill_chain = results[
-            "kill_chain"
-        ]
+        self.kill_chain = results.get(
+            "kill_chain",
+            []
+        )
 
-        self.severity = results[
-            "severity"
-        ]
+        self.severity = results.get(
+            "severity",
+            "UNKNOWN"
+        )
 
         self.ueba = results.get(
-            "ueba",
+            "ueba_results",
             {}
         )
 
-        self.timelines = results.get(
-            "user_timelines",
-            {}
+        self.timeline = results.get(
+            "timeline",
+            []
         )
 
     # =================================================
-    # QUERY ROUTER
+    # FORMATTERS
     # =================================================
 
-    def retrieve_context(
+    def _format_attack_mapping(self):
 
-        self,
+        if not self.attack_mapping:
 
-        query
-    ):
+            return "No ATT&CK techniques detected."
 
-        query = query.lower()
+        formatted = []
 
-        context = ""
+        for attack in self.attack_mapping:
 
-        # ---------------------------------------------
-        # SUMMARY
-        # ---------------------------------------------
+            formatted.append(
 
-        if "summary" in query:
+                f"{attack['technique']} "
+                f"{attack['name']} "
+                f"({attack['tactic']})"
+            )
 
-            context += f"""
+        return "\n".join(formatted)
 
-SEVERITY:
-{self.severity}
+    def _format_timeline(self):
 
-THREAT PROBABILITY:
-{self.bayesian["probability"]}%
+        if not self.timeline:
 
-THREAT CONFIDENCE:
-{self.bayesian["label"]}
-"""
+            return "No timeline events."
 
-        # ---------------------------------------------
-        # MITRE
-        # ---------------------------------------------
-
-        elif "mitre" in query \
-        or "attack" in query:
-
-            context += f"""
-
-MITRE ATT&CK TECHNIQUES:
-{self.attack_mapping}
-"""
-
-        # ---------------------------------------------
-        # KILL CHAIN
-        # ---------------------------------------------
-
-        elif "kill chain" in query \
-        or "phase" in query:
-
-            context += f"""
-
-KILL CHAIN PHASES:
-{self.kill_chain}
-"""
-
-        # ---------------------------------------------
-        # UEBA
-        # ---------------------------------------------
-
-        elif "ueba" in query \
-        or "user" in query \
-        or "risk" in query:
-
-            context += f"""
-
-USER BEHAVIOR ANALYTICS:
-{self.ueba}
-"""
-
-        # ---------------------------------------------
-        # TIMELINES
-        # ---------------------------------------------
-
-        elif "timeline" in query:
-
-            context += f"""
-
-USER TIMELINES:
-{self.timelines}
-"""
-
-        # ---------------------------------------------
-        # EVIDENCE
-        # ---------------------------------------------
-
-        elif "evidence" in query \
-        or "suspicious" in query:
-
-            context += f"""
-
-SECURITY EVIDENCE:
-{self.evidence}
-"""
-
-        # ---------------------------------------------
-        # SEVERITY
-        # ---------------------------------------------
-
-        elif "severity" in query:
-
-            context += f"""
-
-SEVERITY:
-{self.severity}
-
-THREAT PROBABILITY:
-{self.bayesian}
-"""
-
-        # ---------------------------------------------
-        # DEFAULT
-        # ---------------------------------------------
-
-        else:
-
-            context += f"""
-
-DATASET DOMAIN:
-{self.profile["domain"]}
-
-SEVERITY:
-{self.severity}
-
-THREAT PROBABILITY:
-{self.bayesian["probability"]}%
-"""
-
-        return context
+        return "\n".join(
+            self.timeline[:10]
+        )
 
     # =================================================
     # QUICK RESPONSES
@@ -202,11 +108,151 @@ THREAT PROBABILITY:
         if query in greetings:
 
             return (
-                f"SOC AI Assistant active for "
-                f"{self.profile['domain']} telemetry."
+                f"SOC assistant active for "
+                f"{self.profile.get('domain', 'security analysis')}."
             )
 
         return None
+
+    # =================================================
+    # QUERY ROUTER
+    # =================================================
+
+    def retrieve_context(
+
+        self,
+
+        query
+    ):
+
+        query = query.lower()
+
+        # =============================================
+        # SUMMARY
+        # =============================================
+
+        if "summary" in query:
+
+            return f"""
+SEVERITY: {self.severity}
+
+THREAT PROBABILITY:
+{self.bayesian.get('probability', 0)}%
+
+MITRE:
+{self._format_attack_mapping()}
+
+KILL CHAIN:
+{', '.join(self.kill_chain)}
+
+TOP TIMELINE EVENTS:
+{self._format_timeline()}
+"""
+
+        # =============================================
+        # MITRE
+        # =============================================
+
+        elif (
+            "mitre" in query
+            or "attack" in query
+        ):
+
+            return f"""
+MITRE ATT&CK TECHNIQUES:
+
+{self._format_attack_mapping()}
+"""
+
+        # =============================================
+        # KILL CHAIN
+        # =============================================
+
+        elif (
+            "kill chain" in query
+            or "phase" in query
+        ):
+
+            return f"""
+KILL CHAIN PHASES:
+
+{', '.join(self.kill_chain)}
+"""
+
+        # =============================================
+        # UEBA
+        # =============================================
+
+        elif (
+            "ueba" in query
+            or "user" in query
+            or "risk" in query
+        ):
+
+            return f"""
+UEBA RESULTS:
+
+{self.ueba}
+"""
+
+        # =============================================
+        # TIMELINE
+        # =============================================
+
+        elif "timeline" in query:
+
+            return f"""
+TIMELINE EVENTS:
+
+{self._format_timeline()}
+"""
+
+        # =============================================
+        # EVIDENCE
+        # =============================================
+
+        elif (
+            "evidence" in query
+            or "suspicious" in query
+        ):
+
+            return f"""
+SECURITY EVIDENCE:
+
+{self.evidence}
+"""
+
+        # =============================================
+        # SEVERITY
+        # =============================================
+
+        elif "severity" in query:
+
+            return f"""
+SEVERITY:
+{self.severity}
+
+THREAT PROBABILITY:
+{self.bayesian.get('probability', 0)}%
+"""
+
+        # =============================================
+        # DEFAULT
+        # =============================================
+
+        return f"""
+DATASET:
+{self.profile.get('name', 'Unknown')}
+
+DOMAIN:
+{self.profile.get('domain', 'Unknown')}
+
+SEVERITY:
+{self.severity}
+
+THREAT PROBABILITY:
+{self.bayesian.get('probability', 0)}%
+"""
 
     # =================================================
     # MAIN PROCESSING
@@ -219,9 +265,9 @@ THREAT PROBABILITY:
         user_query
     ):
 
-        # ---------------------------------------------
+        # =============================================
         # QUICK RESPONSE
-        # ---------------------------------------------
+        # =============================================
 
         fast = self.quick_response(
             user_query
@@ -231,9 +277,9 @@ THREAT PROBABILITY:
 
             return fast
 
-        # ---------------------------------------------
-        # RETRIEVED CONTEXT
-        # ---------------------------------------------
+        # =============================================
+        # CONTEXT
+        # =============================================
 
         retrieved_context = (
 
@@ -242,70 +288,97 @@ THREAT PROBABILITY:
             )
         )
 
-        # ---------------------------------------------
-        # SYSTEM PROMPT
-        # ---------------------------------------------
+        # =============================================
+        # STRICT SYSTEM PROMPT
+        # =============================================
 
         system_prompt = f"""
-        You are a SOC analyst assistant.
+You are a SOC incident assistant.
 
-        DATASET DOMAIN:
-        {self.profile["domain"]}
+ONLY answer using the provided incident context.
 
-        RETRIEVED CONTEXT:
-        {retrieved_context}
+DO NOT:
+- invent stories
+- generate tutorials
+- generate articles
+- explain cybersecurity concepts
+- add introductions
+- add conclusions
 
-        STRICT RESPONSE RULES:
+STRICT OUTPUT RULES:
+- maximum 4 bullet points
+- each bullet under 12 words
+- no paragraphs
+- no headings
+- concise SOC analyst language only
 
-        - MAXIMUM 4 bullet points
-        - EACH bullet MAXIMUM 12 words
-        - NO paragraphs
-        - NO explanations
-        - NO introductions
-        - NO conclusions
-        - NO markdown headings
-        - NO long sentences
-        - Use short SOC alert language
-        - Mention MITRE IDs only if relevant
-        - Mention severity only if relevant
-        - Mention actions briefly
+If context lacks information:
+respond exactly:
+No relevant incident evidence found.
 
-        GOOD RESPONSE EXAMPLE:
+INCIDENT CONTEXT:
+{retrieved_context}
+"""
 
-        • Suspicious logons exceeded enterprise baseline.
-        • Credential abuse indicators detected.
-        • MITRE T1078 Valid Accounts observed.
-        • Isolate affected endpoints immediately.
-
-        BAD RESPONSE EXAMPLE:
-
-        "This incident indicates a potentially serious compromise..."
-        """
-
-        # ---------------------------------------------
+        # =============================================
         # OLLAMA
-        # ---------------------------------------------
+        # =============================================
 
-        response = ollama.chat(
+        try:
 
-            model="tinyllama",
+            response = ollama.chat(
 
-            messages=[
+                model="phi3",
 
-                {
-                    "role": "system",
+                options={
 
-                    "content":
-                    system_prompt
+                    "temperature": 0.1,
+
+                    "top_p": 0.2,
+
+                    "num_predict": 120
                 },
 
-                {
-                    "role": "user",
+                messages=[
 
-                    "content":
-                    user_query
-                }
-            ]
-        )
+                    {
+                        "role": "system",
 
-        return response["message"]["content"]
+                        "content":
+                        system_prompt
+                    },
+
+                    {
+                        "role": "user",
+
+                        "content":
+                        user_query
+                    }
+                ]
+            )
+
+            content = response[
+                "message"
+            ][
+                "content"
+            ].strip()
+
+            # =========================================
+            # FALLBACK CLEANUP
+            # =========================================
+
+            if len(content) > 1000:
+
+                return (
+                    "• Excessive model output suppressed.\n"
+                    "• Refine investigation query."
+                )
+
+            return content
+
+        except Exception as e:
+
+            return (
+                f"• SOC assistant failure\n"
+                f"• {str(e)}"
+            )
